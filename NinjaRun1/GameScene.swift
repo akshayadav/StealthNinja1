@@ -229,21 +229,25 @@ class GameScene: SKScene {
         guard gameState == .playing else { return }
         guard ninja.currentState != .moving else { return }
         
-        // Find next hiding point
+        // Find next hiding point or endpoint
         let nextIndex = ninja.targetHidingPointIndex
-        guard nextIndex < hidingPoints.count else {
-            // Check if reached end
-            checkLevelComplete()
-            return
+        
+        // Determine target position
+        let targetPosition: CGPoint
+        if nextIndex < hidingPoints.count {
+            // Move to next hiding point
+            targetPosition = hidingPoints[nextIndex].position
+        } else {
+            // Move to endpoint
+            targetPosition = currentLevel.endPosition
         }
         
-        let targetHP = hidingPoints[nextIndex]
-        let distance = hypot(targetHP.position.x - ninja.position.x,
-                            targetHP.position.y - ninja.position.y)
+        let distance = hypot(targetPosition.x - ninja.position.x,
+                            targetPosition.y - ninja.position.y)
         let duration = TimeInterval(distance / 100.0) // Speed: 100 points per second
         
         ninja.reveal()
-        ninja.moveTo(point: targetHP.position, duration: duration) { [weak self] in
+        ninja.moveTo(point: targetPosition, duration: duration) { [weak self] in
             self?.onNinjaReachedPoint()
         }
         
@@ -268,6 +272,14 @@ class GameScene: SKScene {
     
     private func onNinjaReachedPoint() {
         ninja.targetHidingPointIndex += 1
+        
+        // Check if we've reached the endpoint
+        if ninja.targetHidingPointIndex > hidingPoints.count {
+            checkLevelComplete()
+            moveButton.fillColor = SKColor(red: 0.2, green: 0.6, blue: 0.8, alpha: 0.8)
+            moveButtonLabel.text = "MOVE"
+            return
+        }
         
         if isButtonPressed {
             moveNinja()
