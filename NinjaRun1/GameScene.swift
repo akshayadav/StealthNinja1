@@ -229,16 +229,19 @@ class GameScene: SKScene {
         guard gameState == .playing else { return }
         guard ninja.currentState != .moving else { return }
         
-        // Find next hiding point or endpoint
+        // ⚠️ CRITICAL: DO NOT USE guard STATEMENT HERE!
+        // The ninja MUST be able to move beyond the last hiding point to reach the endpoint.
+        // Using guard nextIndex < hidingPoints.count will cause the bug where ninja gets stuck!
+        
         let nextIndex = ninja.targetHidingPointIndex
         
-        // Determine target position
+        // Determine target position: either next hiding point OR the endpoint
         let targetPosition: CGPoint
         if nextIndex < hidingPoints.count {
-            // Move to next hiding point
+            // Still have hiding points to visit
             targetPosition = hidingPoints[nextIndex].position
         } else {
-            // Move to endpoint (FIXED: allows movement beyond last hiding point)
+            // Past all hiding points - move to endpoint to complete level
             targetPosition = currentLevel.endPosition
         }
         
@@ -273,8 +276,10 @@ class GameScene: SKScene {
     private func onNinjaReachedPoint() {
         ninja.targetHidingPointIndex += 1
         
-        // Check if we've reached the endpoint (FIXED: triggers level completion)
+        // ⚠️ CRITICAL: Check if ninja has reached the endpoint
+        // When index exceeds hiding points count, ninja is at endpoint
         if ninja.targetHidingPointIndex > hidingPoints.count {
+            // Ninja reached the endpoint - complete the level!
             checkLevelComplete()
             moveButton.fillColor = SKColor(red: 0.2, green: 0.6, blue: 0.8, alpha: 0.8)
             moveButtonLabel.text = "MOVE"
