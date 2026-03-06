@@ -157,6 +157,16 @@ class GameScene: SKScene {
         createMarker(at: currentLevel.startPosition, color: .green, label: "START")
         createMarker(at: currentLevel.endPosition, color: .cyan, label: "END")
         
+        // ⚠️ CRITICAL: Create START position as first hiding point (safe zone)
+        // This ensures ninja is safe at spawn and not immediately detected
+        let startHidingPoint = StealthHidingPoint(config: LevelData.HidingPointConfig(
+            position: currentLevel.startPosition,
+            size: CGSize(width: 80, height: 80),
+            isLightDependent: false
+        ))
+        worldNode.addChild(startHidingPoint)
+        hidingPoints.append(startHidingPoint)
+        
         // Create hiding points
         for hpConfig in currentLevel.hidingPoints {
             let hp = StealthHidingPoint(config: hpConfig)
@@ -175,6 +185,10 @@ class GameScene: SKScene {
         ninja = StealthNinjaCharacter()
         ninja.position = currentLevel.startPosition
         worldNode.addChild(ninja)
+        
+        // ⚠️ CRITICAL: Set ninja to start in hiding zone (at start point)
+        // This prevents immediate detection at level start
+        ninja.isInHidingZone = true
         
         // Position camera at start
         updateCamera()
