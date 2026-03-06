@@ -33,6 +33,9 @@ class GameScene: SKScene {
     private var isButtonPressed: Bool = false
     private var detectionLevel: CGFloat = 0.0
     
+    // Debug mode - set to true to see detection lines
+    private let showDebugDetection: Bool = true
+    
     // MARK: - Audio
     private var footstepPlayer: AVAudioPlayer?
     private var alertSoundPlayer: AVAudioPlayer?
@@ -417,22 +420,64 @@ class GameScene: SKScene {
     private func updateDetection() {
         guard ninja.currentState != .detected else { return }
         
+        // Remove old debug lines
+        worldNode.enumerateChildNodes(withName: "debugLine") { node, _ in
+            node.removeFromParent()
+        }
+        
         var isDetected = false
+        var detectingNPC: StealthNPCCharacter? = nil
         
         // Check if any NPC can see the ninja
         for npc in npcs {
-            if npc.canSee(point: ninja.position) {
+            let canSeeNinja = npc.canSee(point: ninja.position)
+            
+            // Draw debug line if enabled
+            if showDebugDetection {
+                let line = SKShapeNode()
+                let path = CGMutablePath()
+                path.move(to: npc.position)
+                path.addLine(to: ninja.position)
+                line.path = path
+                line.strokeColor = canSeeNinja ? .red : .green
+                line.lineWidth = 2
+                line.alpha = 0.5
+                line.name = "debugLine"
+                line.zPosition = 100
+                worldNode.addChild(line)
+            }
+            
+            if canSeeNinja {
                 // Only detect if ninja is not in hiding zone or is moving
                 if !ninja.isInHidingZone || ninja.currentState == .moving {
                     isDetected = true
+                    detectingNPC = npc
                     detectionLevel = min(detectionLevel + 0.05, 1.0)
+                    
+                    // Visual feedback: make detecting NPC flash
+                    if npc.action(forKey: "detectingFlash") == nil {
+                        let flash = SKAction.sequence([
+                            SKAction.fadeAlpha(to: 0.7, duration: 0.2),
+                            SKAction.fadeAlpha(to: 1.0, duration: 0.2)
+                        ])
+                        npc.run(SKAction.repeatForever(flash), withKey: "detectingFlash")
+                    }
                     break
                 }
             }
         }
         
+        // Remove flash from NPCs that are no longer detecting
         if !isDetected {
+            for npc in npcs {
+                npc.removeAction(forKey: "detectingFlash")
+            }
             detectionLevel = max(detectionLevel - 0.02, 0.0)
+        } else if let detectingNPC = detectingNPC {
+            // Remove flash from other NPCs
+            for npc in npcs where npc != detectingNPC {
+                npc.removeAction(forKey: "detectingFlash")
+            }
         }
         
         updateDetectionIndicator()

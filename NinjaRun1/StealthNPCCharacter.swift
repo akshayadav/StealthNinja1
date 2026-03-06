@@ -48,12 +48,16 @@ class StealthNPCCharacter: SKSpriteNode {
         path.move(to: .zero)
         
         // Create arc for vision cone
+        // The cone initially points UP (π/2), because the sprite rotates by (angle - π/2)
+        // This makes the cone align with the sprite's visual forward direction
         let halfAngle = config.visionAngle / 2
+        let baseAngle = CGFloat.pi / 2 // Point up initially
+        
         path.addArc(
             center: .zero,
             radius: config.visionRange,
-            startAngle: -halfAngle,
-            endAngle: halfAngle,
+            startAngle: baseAngle - halfAngle,
+            endAngle: baseAngle + halfAngle,
             clockwise: false
         )
         path.closeSubpath()
@@ -86,7 +90,7 @@ class StealthNPCCharacter: SKSpriteNode {
         
         // Calculate rotation to face movement direction
         let angle = atan2(targetPoint.y - position.y, targetPoint.x - position.x)
-        let rotateAction = SKAction.rotate(toAngle: angle - .pi / 2, duration: 0.3, shortestUnitArc: true)
+        let rotateAction = SKAction.rotate(toAngle: angle - CGFloat.pi / 2, duration: 0.3, shortestUnitArc: true)
         
         let moveAction = SKAction.move(to: targetPoint, duration: duration)
         let waitAction = SKAction.wait(forDuration: 1.0)
@@ -104,18 +108,34 @@ class StealthNPCCharacter: SKSpriteNode {
     }
     
     func canSee(point: CGPoint) -> Bool {
-        // Convert point to NPC's coordinate system
-        let localPoint = convert(point, from: parent!)
+        // Get the ninja's position in world coordinates
+        guard let parent = parent else { return false }
         
-        // Check if point is within vision range
-        let distance = hypot(localPoint.x, localPoint.y)
+        // Calculate vector from NPC to ninja
+        let dx = point.x - position.x
+        let dy = point.y - position.y
+        let distance = hypot(dx, dy)
+        
+        // Check if ninja is within vision range
         guard distance <= config.visionRange else { return false }
         
-        // Check if point is within vision angle
-        let angle = atan2(localPoint.y, localPoint.x)
-        let halfAngle = config.visionAngle / 2
+        // Calculate angle to ninja (in world coordinates)
+        let angleToNinja = atan2(dy, dx)
         
-        return angle >= -halfAngle && angle <= halfAngle
+        // Get NPC's facing direction (zRotation is in radians)
+        // NPC rotates by (angle - π/2) when moving, so add π/2 back to get actual facing direction
+        let npcFacingAngle = zRotation + CGFloat.pi / 2
+        
+        // Calculate the difference between where NPC is facing and where ninja is
+        var angleDiff = angleToNinja - npcFacingAngle
+        
+        // Normalize angle difference to -π to π range
+        while angleDiff > CGFloat.pi { angleDiff -= 2 * CGFloat.pi }
+        while angleDiff < -CGFloat.pi { angleDiff += 2 * CGFloat.pi }
+        
+        // Check if ninja is within the vision cone angle
+        let halfVisionAngle = config.visionAngle / 2
+        return abs(angleDiff) <= halfVisionAngle
     }
     
     func stopPatrol() {
