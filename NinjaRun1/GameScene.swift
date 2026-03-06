@@ -238,7 +238,7 @@ class GameScene: SKScene {
             // Move to next hiding point
             targetPosition = hidingPoints[nextIndex].position
         } else {
-            // Move to endpoint
+            // Move to endpoint (FIXED: allows movement beyond last hiding point)
             targetPosition = currentLevel.endPosition
         }
         
@@ -273,7 +273,7 @@ class GameScene: SKScene {
     private func onNinjaReachedPoint() {
         ninja.targetHidingPointIndex += 1
         
-        // Check if we've reached the endpoint
+        // Check if we've reached the endpoint (FIXED: triggers level completion)
         if ninja.targetHidingPointIndex > hidingPoints.count {
             checkLevelComplete()
             moveButton.fillColor = SKColor(red: 0.2, green: 0.6, blue: 0.8, alpha: 0.8)

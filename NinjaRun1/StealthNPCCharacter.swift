@@ -14,8 +14,19 @@ class StealthNPCCharacter: SKSpriteNode {
     var visionCone: SKShapeNode?
     var detectionTimer: Timer?
     
+    // Detection tracking
+    var detectionAccumulator: CGFloat = 0.0  // Tracks how long ninja has been seen
+    var detectionThreshold: CGFloat = 0.0     // How much time needed to trigger detection
+    
+    // Visual indicator for sensitivity
+    var sensitivityIndicator: SKLabelNode?
+    
     init(config: LevelData.NPCConfig) {
         self.config = config
+        
+        // Calculate detection threshold based on sensitivity (1-10)
+        // Sensitivity 1 = 2.0 seconds, Sensitivity 10 = 0.1 seconds
+        self.detectionThreshold = 2.1 - (CGFloat(config.detectionSensitivity) * 0.2)
         
         // Create NPC representation
         let texture = SKTexture(imageNamed: config.isHostile ? "guard" : "civilian")
@@ -34,6 +45,9 @@ class StealthNPCCharacter: SKSpriteNode {
         
         // Create vision cone
         setupVisionCone()
+        
+        // Add sensitivity indicator
+        setupSensitivityIndicator()
         
         // Start patrol
         startPatrol()
@@ -70,6 +84,46 @@ class StealthNPCCharacter: SKSpriteNode {
         
         if let cone = visionCone {
             addChild(cone)
+        }
+    }
+    
+    private func setupSensitivityIndicator() {
+        // Create a small label showing detection level
+        sensitivityIndicator = SKLabelNode(fontNamed: "Arial-BoldMT")
+        sensitivityIndicator?.text = "\(config.detectionSensitivity)"
+        sensitivityIndicator?.fontSize = 14
+        sensitivityIndicator?.fontColor = getSensitivityColor()
+        sensitivityIndicator?.position = CGPoint(x: 0, y: 30)
+        sensitivityIndicator?.zPosition = 10
+        
+        // Add background circle for visibility
+        let background = SKShapeNode(circleOfRadius: 10)
+        background.fillColor = SKColor.black.withAlphaComponent(0.7)
+        background.strokeColor = getSensitivityColor()
+        background.lineWidth = 2
+        background.position = CGPoint(x: 0, y: 35)
+        background.zPosition = 9
+        background.name = "sensitivityBackground"
+        
+        if let indicator = sensitivityIndicator {
+            addChild(background)
+            addChild(indicator)
+        }
+    }
+    
+    private func getSensitivityColor() -> SKColor {
+        // Color code sensitivity level
+        switch config.detectionSensitivity {
+        case 1...3:
+            return .green      // Lenient
+        case 4...6:
+            return .yellow     // Medium
+        case 7...8:
+            return .orange     // Strict
+        case 9...10:
+            return .red        // Very strict
+        default:
+            return .white
         }
     }
     
@@ -136,6 +190,67 @@ class StealthNPCCharacter: SKSpriteNode {
         // Check if ninja is within the vision cone angle
         let halfVisionAngle = config.visionAngle / 2
         return abs(angleDiff) <= halfVisionAngle
+    }
+    
+    /// Update detection accumulator when seeing ninja
+    /// Returns true if detection threshold is reached
+    func updateDetection(deltaTime: TimeInterval, seeingNinja: Bool) -> Bool {
+        if seeingNinja {
+            // Accumulate detection time
+            detectionAccumulator += CGFloat(deltaTime)
+            
+            // Update indicator to show detection progress
+            updateSensitivityIndicator(progress: detectionAccumulator / detectionThreshold)
+            
+            // Check if threshold reached
+            if detectionAccumulator >= detectionThreshold {
+                return true
+            }
+        } else {
+            // Decay detection when not seeing ninja
+            detectionAccumulator = max(0, detectionAccumulator - CGFloat(deltaTime) * 0.5)
+            updateSensitivityIndicator(progress: detectionAccumulator / detectionThreshold)
+        }
+        
+        return false
+    }
+    
+    /// Reset detection accumulator
+    func resetDetection() {
+        detectionAccumulator = 0.0
+        updateSensitivityIndicator(progress: 0.0)
+    }
+    
+    /// Update the visual indicator based on detection progress
+    private func updateSensitivityIndicator(progress: CGFloat) {
+        guard let indicator = sensitivityIndicator else { return }
+        guard let background = childNode(withName: "sensitivityBackground") as? SKShapeNode else { return }
+        
+        // Change color based on detection progress
+        if progress > 0.7 {
+            background.fillColor = SKColor.red.withAlphaComponent(0.7)
+            indicator.fontColor = .red
+        } else if progress > 0.3 {
+            background.fillColor = SKColor.orange.withAlphaComponent(0.7)
+            indicator.fontColor = .orange
+        } else {
+            background.fillColor = SKColor.black.withAlphaComponent(0.7)
+            indicator.fontColor = getSensitivityColor()
+        }
+        
+        // Pulse when detecting
+        if progress > 0 {
+            if background.action(forKey: "detectionPulse") == nil {
+                let pulse = SKAction.sequence([
+                    SKAction.scale(to: 1.3, duration: 0.3),
+                    SKAction.scale(to: 1.0, duration: 0.3)
+                ])
+                background.run(SKAction.repeatForever(pulse), withKey: "detectionPulse")
+            }
+        } else {
+            background.removeAction(forKey: "detectionPulse")
+            background.setScale(1.0)
+        }
     }
     
     func stopPatrol() {
