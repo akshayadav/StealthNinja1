@@ -28,20 +28,15 @@ struct LevelData {
         let visionRange: CGFloat
         let visionAngle: CGFloat
         let isHostile: Bool
-        let detectionSensitivity: Int  // 1 (lenient) to 10 (strict)
+        let detectionSensitivity: Int // 1-10, how quickly the NPC detects the player
         
-        init(startPosition: CGPoint, 
-             patrolPoints: [CGPoint], 
-             visionRange: CGFloat, 
-             visionAngle: CGFloat, 
-             isHostile: Bool,
-             detectionSensitivity: Int = 5) {  // Default: medium sensitivity
+        init(startPosition: CGPoint, patrolPoints: [CGPoint], visionRange: CGFloat, visionAngle: CGFloat, isHostile: Bool, detectionSensitivity: Int = 5) {
             self.startPosition = startPosition
             self.patrolPoints = patrolPoints
             self.visionRange = visionRange
             self.visionAngle = visionAngle
             self.isHostile = isHostile
-            self.detectionSensitivity = max(1, min(10, detectionSensitivity))  // Clamp to 1-10
+            self.detectionSensitivity = detectionSensitivity
         }
     }
 }
@@ -54,16 +49,8 @@ class LevelManager {
     
     /// Get level data for a specific level number
     func getLevelData(levelNumber: Int) -> LevelData {
-        switch levelNumber {
-        case 1:
-            return createLevel1()
-        case 2:
-            return createLevel2()
-        case 3:
-            return createLevel3()
-        default:
-            return createLevel1()
-        }
+        // Use extended system for better scalability
+        return getLevelDataExtended(levelNumber: levelNumber)
     }
     
     // MARK: - Level Definitions
@@ -89,8 +76,7 @@ class LevelManager {
                 ],
                 visionRange: 180,
                 visionAngle: CGFloat.pi / 3,
-                isHostile: false,
-                detectionSensitivity: 3  // Lenient - good for tutorial
+                isHostile: false
             ),
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 1000, y: 300),
@@ -100,8 +86,7 @@ class LevelManager {
                 ],
                 visionRange: 200,
                 visionAngle: CGFloat.pi / 4,
-                isHostile: false,
-                detectionSensitivity: 4  // Still lenient
+                isHostile: false
             )
         ]
         
@@ -140,8 +125,7 @@ class LevelManager {
                 ],
                 visionRange: 200,
                 visionAngle: CGFloat.pi / 3,
-                isHostile: false,
-                detectionSensitivity: 5  // Medium
+                isHostile: false
             ),
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 900, y: 250),
@@ -151,8 +135,7 @@ class LevelManager {
                 ],
                 visionRange: 220,
                 visionAngle: CGFloat.pi / 4,
-                isHostile: true,
-                detectionSensitivity: 7  // Strict - hostile guard!
+                isHostile: true
             ),
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 1600, y: 300),
@@ -164,8 +147,7 @@ class LevelManager {
                 ],
                 visionRange: 180,
                 visionAngle: CGFloat.pi / 3,
-                isHostile: false,
-                detectionSensitivity: 6  // Medium-strict
+                isHostile: false
             )
         ]
         
@@ -204,8 +186,7 @@ class LevelManager {
                 ],
                 visionRange: 220,
                 visionAngle: CGFloat.pi / 2.5,
-                isHostile: true,
-                detectionSensitivity: 9  // Very strict - elite guard!
+                isHostile: true
             ),
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 600, y: 200),
@@ -216,8 +197,7 @@ class LevelManager {
                 ],
                 visionRange: 200,
                 visionAngle: CGFloat.pi / 3,
-                isHostile: false,
-                detectionSensitivity: 6  // Medium-strict
+                isHostile: false
             ),
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 1150, y: 300),
@@ -227,8 +207,7 @@ class LevelManager {
                 ],
                 visionRange: 240,
                 visionAngle: CGFloat.pi / 3,
-                isHostile: true,
-                detectionSensitivity: 8  // Strict
+                isHostile: true
             ),
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 1500, y: 250),
@@ -240,8 +219,7 @@ class LevelManager {
                 ],
                 visionRange: 190,
                 visionAngle: CGFloat.pi / 3,
-                isHostile: false,
-                detectionSensitivity: 5  // Medium
+                isHostile: false
             ),
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 2200, y: 280),
@@ -251,8 +229,7 @@ class LevelManager {
                 ],
                 visionRange: 230,
                 visionAngle: CGFloat.pi / 2.5,
-                isHostile: true,
-                detectionSensitivity: 10  // MAXIMUM - final boss guard!
+                isHostile: true
             )
         ]
         

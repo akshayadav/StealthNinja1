@@ -14,15 +14,35 @@ class StealthNinjaCharacter: SKSpriteNode {
     var targetHidingPointIndex: Int = 0
     var isInHidingZone: Bool = false
     
+    // Textures for different states
+    private var standingTexture: SKTexture!
+    private var movingTextures: [SKTexture] = []
+    
     init() {
-        // Create a simple ninja representation (will be replaced with sprite)
-        let texture = SKTexture(imageNamed: "ninja")
-        super.init(texture: texture, color: .black, size: CGSize(width: 40, height: 60))
+        // Load the standing texture
+        standingTexture = SKTexture(imageNamed: "SouthStanding")
+        
+        // Debug: Check if standing texture loaded
+        print("🥷 Standing texture size: \(standingTexture.size())")
+        
+        // Load moving animation frames from the GIF
+        // Note: You'll need to extract frames from EastAnimation.gif
+        // For now, we'll try to load them as separate images
+        movingTextures = StealthNinjaCharacter.loadMovingTextures()
+        
+        // Debug: Check how many animation frames loaded
+        print("🥷 Number of moving textures loaded: \(movingTextures.count)")
+        
+        // Initialize with standing texture
+        super.init(texture: standingTexture, color: .clear, size: CGSize(width: 40, height: 60))
         
         // Fallback if no texture is available
-        if texture.size() == .zero {
+        if standingTexture.size() == .zero {
             self.color = .black
             self.size = CGSize(width: 40, height: 60)
+            print("⚠️ Standing texture not found! Using fallback black square.")
+        } else {
+            print("✅ Standing texture loaded successfully!")
         }
         
         self.name = "ninja"
@@ -32,11 +52,53 @@ class StealthNinjaCharacter: SKSpriteNode {
         setupIdleAnimation()
     }
     
+    /// Load moving animation textures
+    /// Strictly loads EastAnimation1 through EastAnimation6
+    private static func loadMovingTextures() -> [SKTexture] {
+        var textures: [SKTexture] = []
+        
+        // Load frames 1-6 (1-indexed as requested)
+        print("🔍 Loading EastAnimation1 through EastAnimation6...")
+        for frameIndex in 1...6 {
+            let textureName = "EastAnimation\(frameIndex)"
+            let texture = SKTexture(imageNamed: textureName)
+            
+            if texture.size() != .zero {
+                textures.append(texture)
+                print("✅ Loaded: \(textureName) - Size: \(texture.size())")
+            } else {
+                print("❌ Failed to load: \(textureName)")
+                print("⚠️ Make sure you have an image set named '\(textureName)' in Assets.xcassets")
+            }
+        }
+        
+        if textures.count == 6 {
+            print("✅ Successfully loaded all 6 animation frames (EastAnimation1-6)!")
+        } else if textures.isEmpty {
+            print("❌ ERROR: No animation frames loaded!")
+            print("💡 You need to create 6 image sets in Assets.xcassets:")
+            print("   - EastAnimation1")
+            print("   - EastAnimation2")
+            print("   - EastAnimation3")
+            print("   - EastAnimation4")
+            print("   - EastAnimation5")
+            print("   - EastAnimation6")
+        } else {
+            print("⚠️ Warning: Only loaded \(textures.count) out of 6 frames")
+        }
+        
+        return textures
+    }
+    
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
     private func setupIdleAnimation() {
+        // Use standing texture for idle
+        texture = standingTexture
+        
+        // Subtle breathing animation
         let breathe = SKAction.sequence([
             SKAction.scaleY(to: 0.98, duration: 1.0),
             SKAction.scaleY(to: 1.0, duration: 1.0)
@@ -48,16 +110,38 @@ class StealthNinjaCharacter: SKSpriteNode {
         currentState = .moving
         removeAction(forKey: "idle")
         
-        // Add a subtle scale effect during movement
-        let scaleUp = SKAction.scaleX(to: 1.1, duration: 0.2)
+        // Start movement animation if we have frames
+        if !movingTextures.isEmpty {
+            print("🏃 Starting walk animation with \(movingTextures.count) frames")
+            let timePerFrame = 0.1 // 10 frames per second
+            let animateAction = SKAction.animate(with: movingTextures, timePerFrame: timePerFrame)
+            run(SKAction.repeatForever(animateAction), withKey: "walkAnimation")
+        } else {
+            print("⚠️ No moving textures available - animation will not play!")
+        }
+        
+        // Calculate direction for flipping sprite
+        let dx = point.x - position.x
+        if dx < 0 {
+            // Moving left - flip sprite
+            xScale = -abs(xScale)
+            print("👈 Moving left")
+        } else if dx > 0 {
+            // Moving right - normal orientation
+            xScale = abs(xScale)
+            print("👉 Moving right")
+        }
+        
+        // Move to target
         let move = SKAction.move(to: point, duration: duration)
-        let scaleDown = SKAction.scaleX(to: 1.0, duration: 0.2)
         
         let sequence = SKAction.sequence([
-            scaleUp,
             move,
-            scaleDown,
-            SKAction.run(completion)
+            SKAction.run { [weak self] in
+                self?.removeAction(forKey: "walkAnimation")
+                print("🛑 Movement complete, stopping animation")
+                completion()
+            }
         ])
         
         run(sequence, withKey: "movement")
@@ -66,6 +150,10 @@ class StealthNinjaCharacter: SKSpriteNode {
     func hide() {
         currentState = .hiding
         removeAction(forKey: "movement")
+        removeAction(forKey: "walkAnimation")
+        
+        // Switch back to standing texture
+        texture = standingTexture
         
         if isInHidingZone {
             // Successful hide - make semi-transparent to show stealth
@@ -86,6 +174,11 @@ class StealthNinjaCharacter: SKSpriteNode {
     func reveal() {
         removeAction(forKey: "hiding")
         removeAction(forKey: "exposed")
+        removeAction(forKey: "walkAnimation")
+        
+        // Switch back to standing texture
+        texture = standingTexture
+        
         let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.2)
         run(fadeIn)
     }
@@ -93,6 +186,9 @@ class StealthNinjaCharacter: SKSpriteNode {
     func detected() {
         currentState = .detected
         removeAllActions()
+        
+        // Switch back to standing texture
+        texture = standingTexture
         
         // Flash red to indicate detection
         let flash = SKAction.sequence([

@@ -362,12 +362,57 @@ class GameScene: SKScene {
     
     private func loadNextLevel() {
         currentLevelNumber += 1
-        if currentLevelNumber > 3 {
-            // Game complete
-            showGameComplete()
+        let totalLevels = LevelManager.shared.getTotalLevels()
+        
+        if currentLevelNumber > totalLevels {
+            // All designed levels complete - now procedural endless mode!
+            showEndlessMode()
         } else {
             loadLevel(levelNumber: currentLevelNumber)
         }
+    }
+    
+    private func showEndlessMode() {
+        let message = SKLabelNode(fontNamed: "Arial-BoldMT")
+        message.text = "ENTERING ENDLESS MODE!"
+        message.fontSize = 32
+        message.fontColor = .yellow
+        message.position = CGPoint(x: 0, y: 50)
+        message.zPosition = 200
+        message.alpha = 0
+        cameraNode.addChild(message)
+        
+        let subMessage = SKLabelNode(fontNamed: "Arial")
+        subMessage.text = "Procedurally generated levels"
+        subMessage.fontSize = 18
+        subMessage.fontColor = .white
+        subMessage.position = CGPoint(x: 0, y: 10)
+        subMessage.zPosition = 200
+        subMessage.alpha = 0
+        cameraNode.addChild(subMessage)
+        
+        let levelInfo = SKLabelNode(fontNamed: "Arial-BoldMT")
+        levelInfo.text = "Level \(currentLevelNumber)"
+        levelInfo.fontSize = 24
+        levelInfo.fontColor = .cyan
+        levelInfo.position = CGPoint(x: 0, y: -30)
+        levelInfo.zPosition = 200
+        levelInfo.alpha = 0
+        cameraNode.addChild(levelInfo)
+        
+        let fadeIn = SKAction.fadeIn(withDuration: 0.5)
+        let wait = SKAction.wait(forDuration: 2.5)
+        let fadeOut = SKAction.fadeOut(withDuration: 0.5)
+        let sequence = SKAction.sequence([fadeIn, wait, fadeOut, SKAction.run { [weak self] in
+            message.removeFromParent()
+            subMessage.removeFromParent()
+            levelInfo.removeFromParent()
+            self?.loadLevel(levelNumber: self?.currentLevelNumber ?? 1)
+        }])
+        
+        message.run(sequence)
+        subMessage.run(sequence)
+        levelInfo.run(sequence)
     }
     
     private func showGameComplete() {
