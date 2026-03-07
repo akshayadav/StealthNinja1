@@ -15,6 +15,22 @@ struct LevelData {
     let hidingPoints: [HidingPointConfig]
     let npcs: [NPCConfig]
     let levelWidth: CGFloat
+    let theme: LevelTheme
+
+    enum LevelTheme {
+        case nightCastle    // dark stone courtyard (levels 1-6)
+        case sunnyVillage   // bright Japanese countryside
+    }
+
+    init(levelNumber: Int, startPosition: CGPoint, endPosition: CGPoint, hidingPoints: [HidingPointConfig], npcs: [NPCConfig], levelWidth: CGFloat, theme: LevelTheme = .nightCastle) {
+        self.levelNumber = levelNumber
+        self.startPosition = startPosition
+        self.endPosition = endPosition
+        self.hidingPoints = hidingPoints
+        self.npcs = npcs
+        self.levelWidth = levelWidth
+        self.theme = theme
+    }
 
     enum NPCType {
         case samuraiGuard

@@ -56,21 +56,17 @@ class GameScene: SKScene {
     
     // MARK: - Setup
     private func setupScene() {
-        // Dark night theme for stealth atmosphere
-        backgroundColor = SKColor(red: 0.05, green: 0.08, blue: 0.15, alpha: 1.0)
+        backgroundColor = SKColor(red: 0.03, green: 0.05, blue: 0.12, alpha: 1.0)
         
         // Setup camera
         cameraNode = SKCameraNode()
         addChild(cameraNode)
         camera = cameraNode
-        
+
         // Setup world container
         worldNode = SKNode()
         addChild(worldNode)
-        
-        // Add atmospheric particles (stars, fog, etc.)
-        addAtmosphericEffects()
-        
+
         // Setup UI
         setupUI()
     }
@@ -307,7 +303,15 @@ class GameScene: SKScene {
         currentLevel = LevelManager.shared.getLevelData(levelNumber: levelNumber)
         currentLevelNumber = levelNumber
         levelLabel.text = "LEVEL \(levelNumber)"
-        
+
+        // Set background color based on theme
+        switch currentLevel.theme {
+        case .nightCastle:
+            backgroundColor = SKColor(red: 0.03, green: 0.05, blue: 0.12, alpha: 1.0)
+        case .sunnyVillage:
+            backgroundColor = SKColor(red: 0.45, green: 0.72, blue: 0.92, alpha: 1.0)
+        }
+
         // Create background
         createBackground()
         
@@ -358,29 +362,65 @@ class GameScene: SKScene {
     }
     
     private func createBackground() {
+        switch currentLevel.theme {
+        case .sunnyVillage:
+            createSunnyVillageBackground()
+            return
+        case .nightCastle:
+            break  // fall through to default night castle rendering
+        }
+
         let w = currentLevel.levelWidth
         let ts: CGFloat = 64  // tile size
 
-        // ── 1. Night sky with stars ──────────────────────────────────────
-        let sky = SKSpriteNode(color: SKColor(red: 0.03, green: 0.04, blue: 0.10, alpha: 1),
-                               size: CGSize(width: w, height: 900))
-        sky.position = CGPoint(x: w / 2, y: 500)
-        sky.zPosition = -20
-        worldNode.addChild(sky)
+        // ── 1. Scenic landscape background ──────────────────────────────
+        // Tile the landscape image across the full level width behind the play area
+        let bgTex = SKTexture(imageNamed: "landscape_bg")
+        bgTex.filteringMode = .nearest
+        let bgHeight: CGFloat = 500
+        let bgAspect = bgTex.size().width / bgTex.size().height
+        let bgTileW = bgHeight * bgAspect  // maintain aspect ratio
+        for bx in stride(from: CGFloat(0), through: w, by: bgTileW) {
+            let bg = SKSpriteNode(texture: bgTex, size: CGSize(width: bgTileW, height: bgHeight))
+            bg.position = CGPoint(x: bx + bgTileW / 2, y: 550)
+            bg.zPosition = -20
+            worldNode.addChild(bg)
+        }
 
-        for _ in 0..<80 {
-            let star = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.4...1.8))
-            star.fillColor = SKColor(white: 1, alpha: CGFloat.random(in: 0.4...1.0))
+        // Night tint overlay — darkens the landscape for nighttime mood
+        let nightTint = SKSpriteNode(color: SKColor(red: 0.02, green: 0.03, blue: 0.10, alpha: 0.55),
+                                     size: CGSize(width: w, height: 600))
+        nightTint.position = CGPoint(x: w / 2, y: 550)
+        nightTint.zPosition = -19
+        worldNode.addChild(nightTint)
+
+        // A few stars visible through the tint
+        for _ in 0..<40 {
+            let star = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.4...1.5))
+            star.fillColor = SKColor(white: 1, alpha: CGFloat.random(in: 0.2...0.6))
             star.strokeColor = .clear
-            star.position = CGPoint(x: CGFloat.random(in: 0...w), y: CGFloat.random(in: 440...900))
-            star.zPosition = -19
+            star.position = CGPoint(x: CGFloat.random(in: 0...w), y: CGFloat.random(in: 600...850))
+            star.zPosition = -18
             let twinkle = SKAction.sequence([
-                SKAction.fadeAlpha(to: 0.15, duration: Double.random(in: 1.5...4.0)),
-                SKAction.fadeAlpha(to: 0.9, duration: Double.random(in: 1.5...4.0))
+                SKAction.fadeAlpha(to: 0.1, duration: Double.random(in: 2.0...4.0)),
+                SKAction.fadeAlpha(to: 0.5, duration: Double.random(in: 2.0...4.0))
             ])
             star.run(SKAction.repeatForever(twinkle))
             worldNode.addChild(star)
         }
+
+        // Bottom background — extend landscape below the play area too
+        for bx in stride(from: CGFloat(0), through: w, by: bgTileW) {
+            let bgBottom = SKSpriteNode(texture: bgTex, size: CGSize(width: bgTileW, height: 200))
+            bgBottom.position = CGPoint(x: bx + bgTileW / 2, y: -60)
+            bgBottom.zPosition = -20
+            worldNode.addChild(bgBottom)
+        }
+        let bottomTint = SKSpriteNode(color: SKColor(red: 0.02, green: 0.03, blue: 0.10, alpha: 0.65),
+                                      size: CGSize(width: w, height: 250))
+        bottomTint.position = CGPoint(x: w / 2, y: -60)
+        bottomTint.zPosition = -19
+        worldNode.addChild(bottomTint)
 
         // ── 2. Rice field strips (top & bottom edges) ────────────────────
         let riceTex = SKTexture(imageNamed: "rice_field_tile")
@@ -499,6 +539,268 @@ class GameScene: SKScene {
         addWorldProps()
     }
 
+    // MARK: - Sunny Village Theme
+    private func createSunnyVillageBackground() {
+        let w = currentLevel.levelWidth
+        let ts: CGFloat = 64
+
+        // ── 1. Bright sky background with village landscape ──────────────
+        let bgTex = SKTexture(imageNamed: "sunny_village_bg")
+        bgTex.filteringMode = .nearest
+        let bgHeight: CGFloat = 500
+        let bgAspect = bgTex.size().width / max(bgTex.size().height, 1)
+        let bgTileW = bgHeight * bgAspect
+        for bx in stride(from: CGFloat(0), through: w, by: bgTileW) {
+            let bg = SKSpriteNode(texture: bgTex, size: CGSize(width: bgTileW, height: bgHeight))
+            bg.position = CGPoint(x: bx + bgTileW / 2, y: 520)
+            bg.zPosition = -20
+            worldNode.addChild(bg)
+        }
+
+        // Light warm tint for sunny atmosphere
+        let sunTint = SKSpriteNode(color: SKColor(red: 1.0, green: 0.95, blue: 0.8, alpha: 0.12),
+                                   size: CGSize(width: w, height: 600))
+        sunTint.position = CGPoint(x: w / 2, y: 300)
+        sunTint.zPosition = -18
+        worldNode.addChild(sunTint)
+
+        // ── 2. Grass base covering the play area ─────────────────────────
+        let grassColor = SKColor(red: 0.35, green: 0.62, blue: 0.18, alpha: 1)
+        let grassBase = SKSpriteNode(color: grassColor, size: CGSize(width: w, height: 400))
+        grassBase.position = CGPoint(x: w / 2, y: 220)
+        grassBase.zPosition = -12
+        worldNode.addChild(grassBase)
+
+        let grassTex = SKTexture(imageNamed: "grass_tile")
+        grassTex.filteringMode = .nearest
+        for x in stride(from: CGFloat(0), through: w, by: ts) {
+            for y in stride(from: CGFloat(60), through: CGFloat(400), by: ts) {
+                let g = SKSpriteNode(texture: grassTex, size: CGSize(width: ts, height: ts))
+                g.position = CGPoint(x: x + ts / 2, y: y + ts / 2)
+                g.alpha = 0.5
+                g.zPosition = -11
+                worldNode.addChild(g)
+            }
+        }
+
+        // ── 3. Rice paddies along top ────────────────────────────────────
+        let riceTex = SKTexture(imageNamed: "rice_field_tile")
+        riceTex.filteringMode = .nearest
+        let ricePlantTex = SKTexture(imageNamed: "rice_plant_tile")
+        ricePlantTex.filteringMode = .nearest
+
+        for y in stride(from: CGFloat(340), through: CGFloat(400), by: ts) {
+            for gx in stride(from: CGFloat(0), through: w, by: ts) {
+                let tile = SKSpriteNode(texture: riceTex, size: CGSize(width: ts, height: ts))
+                tile.position = CGPoint(x: gx + ts / 2, y: y + ts / 2)
+                tile.zPosition = -10
+                worldNode.addChild(tile)
+            }
+        }
+        for y in stride(from: CGFloat(350), through: CGFloat(390), by: ts) {
+            for gx in stride(from: CGFloat(0), through: w, by: ts * 1.5) {
+                let plant = SKSpriteNode(texture: ricePlantTex, size: CGSize(width: ts, height: ts))
+                plant.position = CGPoint(x: gx + CGFloat.random(in: 0...ts),
+                                         y: y + CGFloat.random(in: -8...8))
+                plant.alpha = CGFloat.random(in: 0.5...0.8)
+                plant.zPosition = -9
+                worldNode.addChild(plant)
+            }
+        }
+
+        // ── 4. Dirt path (walkway) ───────────────────────────────────────
+        let dirtTex = SKTexture(imageNamed: "dirt_path_tile")
+        dirtTex.filteringMode = .nearest
+        let pathColor = SKColor(red: 0.55, green: 0.42, blue: 0.28, alpha: 1)
+        let pathBase = SKSpriteNode(color: pathColor, size: CGSize(width: w, height: 100))
+        pathBase.position = CGPoint(x: w / 2, y: 195)
+        pathBase.zPosition = -9
+        worldNode.addChild(pathBase)
+
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            let dirt = SKSpriteNode(texture: dirtTex, size: CGSize(width: ts, height: ts))
+            dirt.position = CGPoint(x: gx + ts / 2, y: 195)
+            dirt.alpha = 0.6
+            dirt.zPosition = -8
+            worldNode.addChild(dirt)
+        }
+
+        // Path edge — lighter grass blending
+        for yEdge: CGFloat in [145, 245] {
+            let edge = SKSpriteNode(color: SKColor(red: 0.45, green: 0.55, blue: 0.22, alpha: 0.5),
+                                    size: CGSize(width: w, height: 4))
+            edge.position = CGPoint(x: w / 2, y: yEdge)
+            edge.zPosition = -7
+            worldNode.addChild(edge)
+        }
+
+        // ── 5. Bottom rice paddy / water edge ───────────────────────────
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            let tile = SKSpriteNode(texture: riceTex, size: CGSize(width: ts, height: ts))
+            tile.position = CGPoint(x: gx + ts / 2, y: 50)
+            tile.zPosition = -10
+            worldNode.addChild(tile)
+        }
+
+        // ── 6. Decorative village props ──────────────────────────────────
+        addSunnyVillageProps()
+    }
+
+    private func addSunnyVillageProps() {
+        let w = currentLevel.levelWidth
+
+        // ── Farmhouses scattered along the upper area ────────────────────
+        var hx: CGFloat = 250
+        while hx < w - 200 {
+            let house = SKSpriteNode(imageNamed: "farmhouse")
+            house.size = CGSize(width: 80, height: 80)
+            house.position = CGPoint(x: hx, y: 330 + CGFloat.random(in: -10...10))
+            house.zPosition = 6
+            worldNode.addChild(house)
+            hx += 600 + CGFloat.random(in: -80...80)
+        }
+
+        // ── Cherry blossom trees ─────────────────────────────────────────
+        var cx: CGFloat = 150
+        while cx < w - 100 {
+            let cherry = SKSpriteNode(imageNamed: "cherry_blossom")
+            cherry.size = CGSize(width: 72, height: 72)
+            let cy: CGFloat = Bool.random() ? (310 + CGFloat.random(in: -15...15)) : (90 + CGFloat.random(in: -10...10))
+            cherry.position = CGPoint(x: cx, y: cy)
+            cherry.zPosition = 6
+            worldNode.addChild(cherry)
+
+            // Soft pink shadow
+            let pinkGlow = SKShapeNode(circleOfRadius: 30)
+            pinkGlow.fillColor = SKColor(red: 1.0, green: 0.7, blue: 0.8, alpha: 0.08)
+            pinkGlow.strokeColor = .clear
+            pinkGlow.position = CGPoint(x: cx, y: cy - 10)
+            pinkGlow.zPosition = 2
+            worldNode.addChild(pinkGlow)
+
+            cx += 500 + CGFloat.random(in: -70...70)
+        }
+
+        // ── Hay carts near farmhouses ────────────────────────────────────
+        var cartX: CGFloat = 400
+        while cartX < w - 300 {
+            let cart = SKSpriteNode(imageNamed: "hay_cart")
+            cart.size = CGSize(width: 48, height: 36)
+            cart.position = CGPoint(x: cartX + CGFloat.random(in: -30...30),
+                                    y: 290 + CGFloat.random(in: -10...10))
+            cart.zPosition = 4
+            worldNode.addChild(cart)
+            cartX += 700 + CGFloat.random(in: -80...80)
+        }
+
+        // ── Decorative cows (non-NPC, just scenery) ──────────────────────
+        var cowX: CGFloat = 500
+        while cowX < w - 300 {
+            let cow = SKSpriteNode(imageNamed: "village_cow_south")
+            cow.size = CGSize(width: 44, height: 32)
+            cow.position = CGPoint(x: cowX + CGFloat.random(in: -40...40),
+                                   y: 320 + CGFloat.random(in: -20...20))
+            cow.zPosition = 5
+            worldNode.addChild(cow)
+
+            // Gentle idle sway
+            let sway = SKAction.sequence([
+                SKAction.moveBy(x: CGFloat.random(in: -8...8), y: 0, duration: Double.random(in: 3...6)),
+                SKAction.moveBy(x: CGFloat.random(in: -8...8), y: 0, duration: Double.random(in: 3...6))
+            ])
+            cow.run(SKAction.repeatForever(sway))
+
+            cowX += 800 + CGFloat.random(in: -100...100)
+        }
+
+        // ── Playing children (non-NPC scenery) ──────────────────────────
+        var kidX: CGFloat = 350
+        while kidX < w - 300 {
+            let child = SKSpriteNode(imageNamed: "village_child_south")
+            child.size = CGSize(width: 24, height: 28)
+            child.position = CGPoint(x: kidX + CGFloat.random(in: -30...30),
+                                     y: 280 + CGFloat.random(in: -15...15))
+            child.zPosition = 5
+            worldNode.addChild(child)
+
+            // Children run around in small circles
+            let runRadius: CGFloat = CGFloat.random(in: 15...30)
+            let runDuration = Double.random(in: 3...5)
+            let circle = SKAction.customAction(withDuration: runDuration) { node, elapsed in
+                let t = elapsed / CGFloat(runDuration)
+                let angle = t * CGFloat.pi * 2
+                node.position = CGPoint(
+                    x: node.position.x + cos(angle) * 0.3,
+                    y: node.position.y + sin(angle) * 0.3
+                )
+            }
+            child.run(SKAction.repeatForever(circle))
+
+            kidX += 900 + CGFloat.random(in: -100...100)
+        }
+
+        // ── Bamboo clusters along edges ──────────────────────────────────
+        var bx: CGFloat = 120
+        while bx < w - 80 {
+            let bamboo = SKSpriteNode(imageNamed: "bamboo_cluster")
+            bamboo.size = CGSize(width: 44, height: 52)
+            bamboo.position = CGPoint(x: bx, y: 85 + CGFloat.random(in: -8...8))
+            bamboo.zPosition = 5
+            worldNode.addChild(bamboo)
+            bx += 400 + CGFloat.random(in: -60...60)
+        }
+
+        // ── Koi pond ─────────────────────────────────────────────────────
+        let pondX = w / 2 + CGFloat.random(in: -200...200)
+        let pond = SKSpriteNode(imageNamed: "koi_pond")
+        pond.size = CGSize(width: 64, height: 56)
+        pond.position = CGPoint(x: pondX, y: 60)
+        pond.zPosition = 4
+        worldNode.addChild(pond)
+
+        let bridge = SKSpriteNode(imageNamed: "wooden_bridge")
+        bridge.size = CGSize(width: 52, height: 52)
+        bridge.position = CGPoint(x: pondX, y: 65)
+        bridge.zPosition = 5
+        worldNode.addChild(bridge)
+
+        // ── Stone lanterns at path edges (fewer, warm daylight glow) ─────
+        var lx: CGFloat = 200
+        while lx < w - 100 {
+            let lantern = SKSpriteNode(imageNamed: "stone_lantern")
+            lantern.size = CGSize(width: 28, height: 38)
+            let ly: CGFloat = Bool.random() ? 260 : 130
+            lantern.position = CGPoint(x: lx, y: ly)
+            lantern.zPosition = 4
+            worldNode.addChild(lantern)
+            lx += 450 + CGFloat.random(in: -50...50)
+        }
+
+        // ── Barrels and crates near farmhouses ───────────────────────────
+        var rx: CGFloat = 300
+        while rx < w - 100 {
+            let prop = SKSpriteNode(imageNamed: Bool.random() ? "barrel" : "crate")
+            prop.size = CGSize(width: 30, height: 30)
+            prop.position = CGPoint(x: rx, y: 300 + CGFloat.random(in: -15...15))
+            prop.zPosition = 4
+            worldNode.addChild(prop)
+            rx += 500 + CGFloat.random(in: -60...60)
+        }
+
+        // ── Crates near hiding spots ─────────────────────────────────────
+        for hp in currentLevel.hidingPoints {
+            if Bool.random() {
+                let crate = SKSpriteNode(imageNamed: "crate")
+                crate.size = CGSize(width: 28, height: 28)
+                let offset: CGFloat = Bool.random() ? 35 : -35
+                crate.position = CGPoint(x: hp.position.x + offset, y: hp.position.y - 15)
+                crate.zPosition = 3
+                worldNode.addChild(crate)
+            }
+        }
+    }
+
+    // MARK: - Night Castle Props
     private func addWorldProps() {
         let w = currentLevel.levelWidth
 
@@ -844,7 +1146,7 @@ class GameScene: SKScene {
         message.zPosition = 200
         message.alpha = 0
         cameraNode.addChild(message)
-        
+
         let subMessage = SKLabelNode(fontNamed: "Arial")
         subMessage.text = "Procedurally generated levels"
         subMessage.fontSize = 18
@@ -853,7 +1155,7 @@ class GameScene: SKScene {
         subMessage.zPosition = 200
         subMessage.alpha = 0
         cameraNode.addChild(subMessage)
-        
+
         let levelInfo = SKLabelNode(fontNamed: "Arial-BoldMT")
         levelInfo.text = "Level \(currentLevelNumber)"
         levelInfo.fontSize = 24
@@ -886,7 +1188,7 @@ class GameScene: SKScene {
         message.position = CGPoint(x: 0, y: 50)
         message.zPosition = 200
         cameraNode.addChild(message)
-        
+
         let restartMessage = SKLabelNode(fontNamed: "Arial")
         restartMessage.text = "Tap ↻ to restart"
         restartMessage.fontSize = 20
@@ -944,16 +1246,24 @@ class GameScene: SKScene {
     }
     
     private func updateCamera() {
-        // Follow ninja with some smoothing
         let targetX = ninja.position.x
-        let targetY = ninja.position.y
-        
-        // Clamp camera to level bounds
-        let minX = size.width / 2
-        let maxX = currentLevel.levelWidth - size.width / 2
+
+        let visibleW = size.width
+        let visibleH = size.height
+
+        // Clamp X to level bounds
+        let minX = visibleW / 2
+        let maxX = currentLevel.levelWidth - visibleW / 2
         let clampedX = min(max(targetX, minX), maxX)
-        
-        cameraNode.position = CGPoint(x: clampedX, y: targetY)
+
+        // Center camera Y on the play area (~y=220), gently follow ninja Y
+        let playAreaCenter: CGFloat = 220
+        let targetY = playAreaCenter + (ninja.position.y - playAreaCenter) * 0.4
+        let minY = visibleH / 2 - 40
+        let maxY: CGFloat = 500
+        let clampedY = min(max(targetY, minY), maxY)
+
+        cameraNode.position = CGPoint(x: clampedX, y: clampedY)
     }
     
     private func updateDetection() {

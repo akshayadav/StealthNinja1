@@ -27,9 +27,7 @@ extension LevelManager {
             4: createLevel4(),
             5: createLevel5(),
             6: createLevel6(),
-            // Add more levels here as you create them!
-            // 7: createLevel7(),
-            // 8: createLevel8(),
+            7: createLevel7(),
         ]
     }
     
@@ -338,6 +336,133 @@ extension LevelManager {
         )
     }
     
+    private func createLevel7() -> LevelData {
+        // Sunny Village — peaceful countryside, farmers working, kids playing, animals grazing
+        // The ninja must cross this idyllic scene undetected
+        let levelWidth: CGFloat = 3000
+
+        let hidingPoints = [
+            LevelData.HidingPointConfig(position: CGPoint(x: 250, y: 200), size: CGSize(width: 75, height: 75), isLightDependent: false),
+            LevelData.HidingPointConfig(position: CGPoint(x: 550, y: 240), size: CGSize(width: 70, height: 70), isLightDependent: false),
+            LevelData.HidingPointConfig(position: CGPoint(x: 900, y: 170), size: CGSize(width: 75, height: 75), isLightDependent: false),
+            LevelData.HidingPointConfig(position: CGPoint(x: 1250, y: 220), size: CGSize(width: 70, height: 70), isLightDependent: false),
+            LevelData.HidingPointConfig(position: CGPoint(x: 1600, y: 260), size: CGSize(width: 70, height: 70), isLightDependent: false),
+            LevelData.HidingPointConfig(position: CGPoint(x: 1950, y: 190), size: CGSize(width: 75, height: 75), isLightDependent: false),
+            LevelData.HidingPointConfig(position: CGPoint(x: 2300, y: 230), size: CGSize(width: 70, height: 70), isLightDependent: false),
+            LevelData.HidingPointConfig(position: CGPoint(x: 2600, y: 200), size: CGSize(width: 70, height: 70), isLightDependent: false),
+        ]
+
+        let npcs: [LevelData.NPCConfig] = [
+            // Farmer working in rice field — slow, wide vision
+            LevelData.NPCConfig(
+                startPosition: CGPoint(x: 400, y: 280),
+                patrolPoints: [
+                    CGPoint(x: 350, y: 280),
+                    CGPoint(x: 550, y: 300),
+                    CGPoint(x: 450, y: 320),
+                    CGPoint(x: 350, y: 280)
+                ],
+                visionRange: 160,
+                visionAngle: CGFloat.pi / 2.5,
+                isHostile: false,
+                detectionSensitivity: 3,
+                npcType: .villageFarmer
+            ),
+            // Farmer near the path
+            LevelData.NPCConfig(
+                startPosition: CGPoint(x: 800, y: 220),
+                patrolPoints: [
+                    CGPoint(x: 750, y: 200),
+                    CGPoint(x: 950, y: 250),
+                    CGPoint(x: 850, y: 300)
+                ],
+                visionRange: 170,
+                visionAngle: CGFloat.pi / 3,
+                isHostile: false,
+                detectionSensitivity: 4,
+                npcType: .villageFarmer
+            ),
+            // Guard keeping watch at village entrance
+            LevelData.NPCConfig(
+                startPosition: CGPoint(x: 1100, y: 250),
+                patrolPoints: [
+                    CGPoint(x: 1000, y: 240),
+                    CGPoint(x: 1200, y: 260)
+                ],
+                visionRange: 200,
+                visionAngle: CGFloat.pi / 2.8,
+                isHostile: true,
+                detectionSensitivity: 6,
+                npcType: .samuraiGuard
+            ),
+            // Farmer with wider patrol
+            LevelData.NPCConfig(
+                startPosition: CGPoint(x: 1450, y: 280),
+                patrolPoints: [
+                    CGPoint(x: 1350, y: 260),
+                    CGPoint(x: 1550, y: 300),
+                    CGPoint(x: 1500, y: 350),
+                    CGPoint(x: 1400, y: 300)
+                ],
+                visionRange: 150,
+                visionAngle: CGFloat.pi / 2.5,
+                isHostile: false,
+                detectionSensitivity: 3,
+                npcType: .villageFarmer
+            ),
+            // Dog resting but alert — short range, very fast detection
+            LevelData.NPCConfig(
+                startPosition: CGPoint(x: 1800, y: 200),
+                patrolPoints: [
+                    CGPoint(x: 1750, y: 190),
+                    CGPoint(x: 1850, y: 210),
+                    CGPoint(x: 1800, y: 230)
+                ],
+                visionRange: 130,
+                visionAngle: CGFloat.pi / 2.0,
+                isHostile: true,
+                detectionSensitivity: 9,
+                npcType: .guardDog
+            ),
+            // Another farmer near the end
+            LevelData.NPCConfig(
+                startPosition: CGPoint(x: 2150, y: 260),
+                patrolPoints: [
+                    CGPoint(x: 2050, y: 250),
+                    CGPoint(x: 2250, y: 280)
+                ],
+                visionRange: 160,
+                visionAngle: CGFloat.pi / 3,
+                isHostile: false,
+                detectionSensitivity: 4,
+                npcType: .villageFarmer
+            ),
+            // Guard at village exit
+            LevelData.NPCConfig(
+                startPosition: CGPoint(x: 2500, y: 240),
+                patrolPoints: [
+                    CGPoint(x: 2400, y: 230),
+                    CGPoint(x: 2600, y: 250)
+                ],
+                visionRange: 210,
+                visionAngle: CGFloat.pi / 2.5,
+                isHostile: true,
+                detectionSensitivity: 6,
+                npcType: .samuraiGuard
+            ),
+        ]
+
+        return LevelData(
+            levelNumber: 7,
+            startPosition: CGPoint(x: 100, y: 200),
+            endPosition: CGPoint(x: 2800, y: 210),
+            hidingPoints: hidingPoints,
+            npcs: npcs,
+            levelWidth: levelWidth,
+            theme: .sunnyVillage
+        )
+    }
+
     // MARK: - Procedural Level Generation
     
     /// Generate a level procedurally for endless gameplay
