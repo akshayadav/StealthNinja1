@@ -34,7 +34,7 @@ class GameScene: SKScene {
     private var detectionLevel: CGFloat = 0.0
     
     // Debug mode - set to true to see detection lines
-    private let showDebugDetection: Bool = true
+    private let showDebugDetection: Bool = false
     
     // MARK: - Audio
     private var footstepPlayer: AVAudioPlayer?
@@ -51,7 +51,8 @@ class GameScene: SKScene {
     
     // MARK: - Setup
     private func setupScene() {
-        backgroundColor = SKColor(red: 0.1, green: 0.1, blue: 0.15, alpha: 1.0)
+        // Dark night theme for stealth atmosphere
+        backgroundColor = SKColor(red: 0.05, green: 0.08, blue: 0.15, alpha: 1.0)
         
         // Setup camera
         cameraNode = SKCameraNode()
@@ -62,6 +63,9 @@ class GameScene: SKScene {
         worldNode = SKNode()
         addChild(worldNode)
         
+        // Add atmospheric particles (stars, fog, etc.)
+        addAtmosphericEffects()
+        
         // Setup UI
         setupUI()
     }
@@ -69,71 +73,67 @@ class GameScene: SKScene {
     private func setupUI() {
         let viewWidth = size.width
         let viewHeight = size.height
-        
-        // Move Button (bottom center)
-        let buttonY = -viewHeight / 2 + buttonSize / 2 + uiPadding
+        let topY = viewHeight / 2 - 40
+        let btnY = -viewHeight / 2 + buttonSize / 2 + uiPadding
+
+        // === MOVE BUTTON (bottom center) ===
         moveButton = SKShapeNode(circleOfRadius: buttonSize / 2)
-        moveButton.fillColor = SKColor(red: 0.2, green: 0.6, blue: 0.8, alpha: 0.8)
-        moveButton.strokeColor = .white
-        moveButton.lineWidth = 3
-        moveButton.position = CGPoint(x: 0, y: buttonY)
+        moveButton.fillColor = SKColor(red: 0.15, green: 0.5, blue: 0.9, alpha: 0.9)
+        moveButton.strokeColor = SKColor.white.withAlphaComponent(0.5)
+        moveButton.lineWidth = 2
+        moveButton.position = CGPoint(x: 0, y: btnY)
         moveButton.zPosition = 100
         moveButton.name = "moveButton"
         cameraNode.addChild(moveButton)
-        
-        moveButtonLabel = SKLabelNode(fontNamed: "Arial-BoldMT")
+
+        moveButtonLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
         moveButtonLabel.text = "MOVE"
         moveButtonLabel.fontSize = 20
         moveButtonLabel.fontColor = .white
         moveButtonLabel.verticalAlignmentMode = .center
-        moveButtonLabel.zPosition = 101
         moveButton.addChild(moveButtonLabel)
-        
-        // Progress Bar (top)
-        let barWidth: CGFloat = viewWidth - 100
-        let barHeight: CGFloat = 20
-        let barY = viewHeight / 2 - barHeight / 2 - uiPadding - 40
-        
-        progressBar = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 10)
-        progressBar.fillColor = SKColor(white: 0.3, alpha: 0.8)
-        progressBar.strokeColor = .white
-        progressBar.lineWidth = 2
+
+        // === LEVEL LABEL (top center) ===
+        levelLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        levelLabel.text = "LEVEL \(currentLevelNumber)"
+        levelLabel.fontSize = 20
+        levelLabel.fontColor = SKColor.white.withAlphaComponent(0.9)
+        levelLabel.position = CGPoint(x: 0, y: topY)
+        levelLabel.zPosition = 100
+        cameraNode.addChild(levelLabel)
+
+        // === PROGRESS BAR (below level label) ===
+        let barWidth: CGFloat = viewWidth * 0.55
+        let barHeight: CGFloat = 6
+        let barY = topY - 26
+
+        progressBar = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight), cornerRadius: 3)
+        progressBar.fillColor = SKColor.white.withAlphaComponent(0.15)
+        progressBar.strokeColor = .clear
         progressBar.position = CGPoint(x: 0, y: barY)
         progressBar.zPosition = 100
         cameraNode.addChild(progressBar)
-        
-        progressBarFill = SKShapeNode(rectOf: CGSize(width: 0, height: barHeight - 4), cornerRadius: 8)
-        progressBarFill.fillColor = SKColor(red: 0.2, green: 0.8, blue: 0.3, alpha: 1.0)
+
+        progressBarFill = SKShapeNode(rectOf: CGSize(width: 1, height: barHeight), cornerRadius: 3)
+        progressBarFill.fillColor = SKColor(red: 0.3, green: 1.0, blue: 0.5, alpha: 1.0)
         progressBarFill.strokeColor = .clear
         progressBarFill.position = CGPoint(x: -barWidth / 2, y: 0)
-        progressBarFill.zPosition = 101
         progressBar.addChild(progressBarFill)
-        
-        // Level Label
-        levelLabel = SKLabelNode(fontNamed: "Arial-BoldMT")
-        levelLabel.text = "LEVEL \(currentLevelNumber)"
-        levelLabel.fontSize = 24
-        levelLabel.fontColor = .white
-        levelLabel.position = CGPoint(x: 0, y: viewHeight / 2 - 30)
-        levelLabel.zPosition = 100
-        cameraNode.addChild(levelLabel)
-        
-        // Detection Indicator
-        let indicatorSize: CGFloat = 40
-        detectionIndicator = SKShapeNode(circleOfRadius: indicatorSize / 2)
-        detectionIndicator.fillColor = .green
-        detectionIndicator.strokeColor = .white
-        detectionIndicator.lineWidth = 2
-        detectionIndicator.position = CGPoint(x: viewWidth / 2 - indicatorSize - uiPadding, y: barY)
+
+        // === DETECTION INDICATOR (top right) ===
+        detectionIndicator = SKShapeNode(circleOfRadius: 12)
+        detectionIndicator.fillColor = SKColor(red: 0.2, green: 0.9, blue: 0.3, alpha: 1.0)
+        detectionIndicator.strokeColor = .clear
+        detectionIndicator.position = CGPoint(x: viewWidth / 2 - 28, y: topY)
         detectionIndicator.zPosition = 100
         cameraNode.addChild(detectionIndicator)
-        
-        // Restart Button
-        restartButton = SKLabelNode(fontNamed: "Arial-BoldMT")
+
+        // === RESTART BUTTON (top left) ===
+        restartButton = SKLabelNode(fontNamed: "AvenirNext-Bold")
         restartButton.text = "↻"
-        restartButton.fontSize = 32
-        restartButton.fontColor = .white
-        restartButton.position = CGPoint(x: -viewWidth / 2 + 30, y: barY)
+        restartButton.fontSize = 30
+        restartButton.fontColor = SKColor.white.withAlphaComponent(0.8)
+        restartButton.position = CGPoint(x: -viewWidth / 2 + 28, y: topY - 8)
         restartButton.zPosition = 100
         restartButton.name = "restartButton"
         cameraNode.addChild(restartButton)
@@ -200,42 +200,194 @@ class GameScene: SKScene {
     }
     
     private func createBackground() {
-        // Create a simple ground
-        let groundHeight: CGFloat = 500
-        let ground = SKShapeNode(rectOf: CGSize(width: currentLevel.levelWidth, height: groundHeight))
-        ground.fillColor = SKColor(red: 0.15, green: 0.2, blue: 0.15, alpha: 1.0)
-        ground.strokeColor = .clear
-        ground.position = CGPoint(x: currentLevel.levelWidth / 2, y: 250)
-        ground.zPosition = 0
-        worldNode.addChild(ground)
+        // === LAYERED BACKGROUND FOR DEPTH ===
         
-        // Add some grid lines for depth
-        for x in stride(from: CGFloat(0), through: currentLevel.levelWidth, by: 200) {
-            let line = SKShapeNode(rectOf: CGSize(width: 2, height: groundHeight))
-            line.fillColor = SKColor(white: 0.2, alpha: 0.3)
-            line.strokeColor = .clear
-            line.position = CGPoint(x: x, y: 250)
-            line.zPosition = 0
-            worldNode.addChild(line)
+        // Far background - Dark sky
+        let skyHeight: CGFloat = 800
+        let sky = SKShapeNode(rectOf: CGSize(width: currentLevel.levelWidth, height: skyHeight))
+        let skyColors = [
+            SKColor(red: 0.05, green: 0.08, blue: 0.15, alpha: 1.0),
+            SKColor(red: 0.1, green: 0.12, blue: 0.2, alpha: 1.0)
+        ]
+        sky.fillColor = skyColors[0]
+        sky.strokeColor = .clear
+        sky.position = CGPoint(x: currentLevel.levelWidth / 2, y: 400)
+        sky.zPosition = -10
+        worldNode.addChild(sky)
+        
+        // Add stars
+        for _ in 0..<50 {
+            let star = SKShapeNode(circleOfRadius: CGFloat.random(in: 1...3))
+            star.fillColor = .white
+            star.strokeColor = .clear
+            star.alpha = CGFloat.random(in: 0.3...0.9)
+            star.position = CGPoint(
+                x: CGFloat.random(in: 0...currentLevel.levelWidth),
+                y: CGFloat.random(in: 200...700)
+            )
+            star.zPosition = -9
+            
+            // Twinkling animation
+            let twinkle = SKAction.sequence([
+                SKAction.fadeAlpha(to: 0.3, duration: Double.random(in: 1.0...2.0)),
+                SKAction.fadeAlpha(to: 0.9, duration: Double.random(in: 1.0...2.0))
+            ])
+            star.run(SKAction.repeatForever(twinkle))
+            
+            worldNode.addChild(star)
+        }
+        
+        // Ground layer - Main play area tiled with pixel art ground tiles
+        let tileSize: CGFloat = 64
+        let groundMinY: CGFloat = 50
+        let groundMaxY: CGFloat = 450
+        for x in stride(from: CGFloat(0), through: currentLevel.levelWidth, by: tileSize) {
+            for y in stride(from: groundMinY, through: groundMaxY, by: tileSize) {
+                let tile = SKSpriteNode(imageNamed: "ground_tile")
+                tile.size = CGSize(width: tileSize, height: tileSize)
+                tile.position = CGPoint(x: x + tileSize / 2, y: y + tileSize / 2)
+                tile.zPosition = 0
+                worldNode.addChild(tile)
+            }
+        }
+
+        // Scatter decorative world props
+        addWorldProps()
+        
+        // Add atmospheric fog/mist effect
+        let fogParticles = SKEmitterNode()
+        fogParticles.particleTexture = SKTexture(imageNamed: "spark") // Falls back gracefully if missing
+        fogParticles.particleBirthRate = 5
+        fogParticles.numParticlesToEmit = 0
+        fogParticles.particleLifetime = 20
+        fogParticles.particlePositionRange = CGVector(dx: currentLevel.levelWidth, dy: 400)
+        fogParticles.particleSpeed = 10
+        fogParticles.particleSpeedRange = 5
+        fogParticles.emissionAngle = 0
+        fogParticles.emissionAngleRange = .pi / 8
+        fogParticles.particleAlpha = 0.1
+        fogParticles.particleAlphaRange = 0.05
+        fogParticles.particleScale = 3.0
+        fogParticles.particleScaleRange = 1.0
+        fogParticles.particleColor = .white
+        fogParticles.particleBlendMode = .alpha
+        fogParticles.position = CGPoint(x: currentLevel.levelWidth / 2, y: 300)
+        fogParticles.zPosition = 8
+        worldNode.addChild(fogParticles)
+    }
+    
+    private func addWorldProps() {
+        // Prop definitions: (textureName, size, zPosition)
+        let propDefs: [(String, CGSize, CGFloat)] = [
+            ("barrel",      CGSize(width: 48, height: 48), 3),
+            ("crate",       CGSize(width: 48, height: 48), 3),
+            ("rock",        CGSize(width: 40, height: 36), 3),
+            ("tree_top",    CGSize(width: 64, height: 72), 4),
+            ("lantern_post",CGSize(width: 40, height: 72), 4)
+        ]
+
+        // Predefined scatter positions to avoid gameplay areas (hiding points are near y=150-300)
+        let edgeYPositions: [CGFloat] = [60, 80, 380, 410, 430]
+        let spacing: CGFloat = 280
+
+        var x: CGFloat = 150
+        var propIndex = 0
+        while x < currentLevel.levelWidth - 100 {
+            let (name, size, zPos) = propDefs[propIndex % propDefs.count]
+            let y = edgeYPositions[propIndex % edgeYPositions.count]
+            let prop = SKSpriteNode(imageNamed: name)
+            prop.size = size
+            prop.position = CGPoint(x: x, y: y)
+            prop.zPosition = zPos
+            worldNode.addChild(prop)
+            x += spacing + CGFloat.random(in: -60...60)
+            propIndex += 1
+        }
+    }
+
+    private func createMarker(at position: CGPoint, color: SKColor, label: String) {
+        // Outer glow ring
+        let glowRing = SKShapeNode(circleOfRadius: 40)
+        glowRing.fillColor = .clear
+        glowRing.strokeColor = color
+        glowRing.lineWidth = 3
+        glowRing.alpha = 0.5
+        glowRing.position = position
+        glowRing.zPosition = 2
+        worldNode.addChild(glowRing)
+        
+        // Pulse animation for glow
+        let pulse = SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 1.3, duration: 1.0),
+                SKAction.fadeAlpha(to: 0.2, duration: 1.0)
+            ]),
+            SKAction.group([
+                SKAction.scale(to: 1.0, duration: 1.0),
+                SKAction.fadeAlpha(to: 0.5, duration: 1.0)
+            ])
+        ])
+        glowRing.run(SKAction.repeatForever(pulse))
+        
+        // Main marker
+        let marker = SKShapeNode(circleOfRadius: 35)
+        marker.fillColor = color.withAlphaComponent(0.6)
+        marker.strokeColor = color
+        marker.lineWidth = 3
+        marker.glowWidth = 5
+        marker.position = position
+        marker.zPosition = 3
+        worldNode.addChild(marker)
+        
+        // Inner detail circle
+        let innerCircle = SKShapeNode(circleOfRadius: 25)
+        innerCircle.fillColor = .clear
+        innerCircle.strokeColor = .white
+        innerCircle.lineWidth = 2
+        innerCircle.alpha = 0.6
+        marker.addChild(innerCircle)
+        
+        // Label with background
+        let labelBg = SKShapeNode(rectOf: CGSize(width: 80, height: 25), cornerRadius: 12)
+        labelBg.fillColor = SKColor.black.withAlphaComponent(0.8)
+        labelBg.strokeColor = color
+        labelBg.lineWidth = 2
+        labelBg.position = CGPoint(x: 0, y: -55)
+        marker.addChild(labelBg)
+        
+        let markerLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        markerLabel.text = label
+        markerLabel.fontSize = 14
+        markerLabel.fontColor = color
+        markerLabel.verticalAlignmentMode = .center
+        markerLabel.position = CGPoint(x: 0, y: -55)
+        marker.addChild(markerLabel)
+        
+        // Add particle effect for END marker
+        if label == "END" {
+            let particles = SKEmitterNode()
+            particles.particleTexture = SKTexture(imageNamed: "spark")
+            particles.particleBirthRate = 20
+            particles.numParticlesToEmit = 0
+            particles.particleLifetime = 1.5
+            particles.particlePositionRange = CGVector(dx: 60, dy: 60)
+            particles.particleSpeed = 30
+            particles.particleSpeedRange = 20
+            particles.emissionAngle = .pi / 2
+            particles.emissionAngleRange = .pi * 2
+            particles.particleAlpha = 0.8
+            particles.particleAlphaSpeed = -0.5
+            particles.particleScale = 0.3
+            particles.particleScaleSpeed = -0.1
+            particles.particleColor = color
+            particles.particleBlendMode = .add
+            marker.addChild(particles)
         }
     }
     
-    private func createMarker(at position: CGPoint, color: SKColor, label: String) {
-        let marker = SKShapeNode(circleOfRadius: 30)
-        marker.fillColor = color
-        marker.alpha = 0.5
-        marker.strokeColor = .white
-        marker.lineWidth = 2
-        marker.position = position
-        marker.zPosition = 2
-        worldNode.addChild(marker)
-        
-        let markerLabel = SKLabelNode(fontNamed: "Arial-BoldMT")
-        markerLabel.text = label
-        markerLabel.fontSize = 12
-        markerLabel.fontColor = .white
-        markerLabel.verticalAlignmentMode = .center
-        marker.addChild(markerLabel)
+    // Add atmospheric effects
+    private func addAtmosphericEffects() {
+        // intentionally empty — vignette removed (it used a full-view bounding box that blocked touches)
     }
     
     // MARK: - Game Logic
@@ -269,7 +421,7 @@ class GameScene: SKScene {
         }
         
         // Update button appearance
-        moveButton.fillColor = SKColor(red: 0.8, green: 0.3, blue: 0.2, alpha: 0.8)
+        moveButton.fillColor = SKColor(red: 0.8, green: 0.3, blue: 0.2, alpha: 0.9)
         moveButtonLabel.text = "..."
     }
     
@@ -283,7 +435,7 @@ class GameScene: SKScene {
         checkHidingZone()
         
         // Update button appearance
-        moveButton.fillColor = SKColor(red: 0.2, green: 0.6, blue: 0.8, alpha: 0.8)
+        moveButton.fillColor = SKColor(red: 0.15, green: 0.5, blue: 0.9, alpha: 0.9)
         moveButtonLabel.text = "MOVE"
     }
     
@@ -592,39 +744,31 @@ class GameScene: SKScene {
         let totalDistance = currentLevel.endPosition.x - currentLevel.startPosition.x
         let currentDistance = ninja.position.x - currentLevel.startPosition.x
         let progress = max(0, min(1, currentDistance / totalDistance))
-        
-        if let fill = progressBarFill as? SKShapeNode,
-           let bar = progressBar as? SKShapeNode {
-            let barWidth = bar.frame.width
-            let fillWidth = barWidth * progress
-            
-            let newRect = SKShapeNode(rectOf: CGSize(width: fillWidth, height: 16), cornerRadius: 8)
-            newRect.fillColor = progressBarFill.fillColor
-            newRect.strokeColor = .clear
-            newRect.position = CGPoint(x: -barWidth / 2 + fillWidth / 2, y: 0)
-            newRect.zPosition = 101
-            
-            fill.removeFromParent()
-            progressBarFill = newRect
-            progressBar.addChild(progressBarFill)
-        }
+        let barWidth = size.width * 0.55
+        let barHeight: CGFloat = 6
+        let fillWidth = max(barWidth * progress, 1)
+        progressBarFill.path = CGPath(
+            roundedRect: CGRect(x: 0, y: -barHeight / 2, width: fillWidth, height: barHeight),
+            cornerWidth: 3, cornerHeight: 3, transform: nil
+        )
     }
     
     // MARK: - Touch Handling
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let location = touch.location(in: cameraNode)
-        let touchedNode = cameraNode.atPoint(location)
-        
-        // Check restart button
-        if touchedNode.name == "restartButton" || touchedNode.parent?.name == "restartButton" {
+
+        // Restart button — use distance check (reliable regardless of child node zPositions)
+        let restartDist = hypot(location.x - restartButton.position.x, location.y - restartButton.position.y)
+        if restartDist < 40 {
             currentLevelNumber = 1
             loadLevel(levelNumber: currentLevelNumber)
             return
         }
-        
-        // Check move button
-        if touchedNode.name == "moveButton" || touchedNode.parent?.name == "moveButton" {
+
+        // Move button — distance check against button radius
+        let buttonDist = hypot(location.x - moveButton.position.x, location.y - moveButton.position.y)
+        if buttonDist <= buttonSize / 2 {
             isButtonPressed = true
             moveNinja()
         }

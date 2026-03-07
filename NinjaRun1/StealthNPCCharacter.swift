@@ -13,43 +13,41 @@ class StealthNPCCharacter: SKSpriteNode {
     var currentPatrolIndex: Int = 0
     var visionCone: SKShapeNode?
     var detectionTimer: Timer?
-    
+
     // Detection tracking
-    var detectionAccumulator: CGFloat = 0.0  // Tracks how long ninja has been seen
-    var detectionThreshold: CGFloat = 0.0     // How much time needed to trigger detection
-    
+    var detectionAccumulator: CGFloat = 0.0
+    var detectionThreshold: CGFloat = 0.0
+
+    // Tracks the direction the NPC is facing (radians, 0 = east, π/2 = north)
+    private var facingAngle: CGFloat = -CGFloat.pi / 2  // default: facing south
+
     // Visual indicator for sensitivity
     var sensitivityIndicator: SKLabelNode?
-    
+
     init(config: LevelData.NPCConfig) {
         self.config = config
-        
-        // Calculate detection threshold based on sensitivity (1-10)
-        // Sensitivity 1 = 2.0 seconds, Sensitivity 10 = 0.1 seconds
+
+        // Sensitivity 1 = 2.0 seconds to detect, Sensitivity 10 = 0.1 seconds
         self.detectionThreshold = 2.1 - (CGFloat(config.detectionSensitivity) * 0.2)
-        
-        // Create NPC representation
-        let texture = SKTexture(imageNamed: config.isHostile ? "guard" : "civilian")
-        let size = CGSize(width: 40, height: 50)
-        super.init(texture: texture, color: config.isHostile ? .red : .blue, size: size)
-        
-        // Fallback if no texture is available
+
+        let isQuadruped = (config.npcType == .guardDog || config.npcType == .blackPanther)
+        let size = isQuadruped ? CGSize(width: 50, height: 36) : CGSize(width: 40, height: 50)
+
+        // Load south-facing sprite as the starting texture
+        let initialTextureName = "\(config.npcType.textureName)_south"
+        let texture = SKTexture(imageNamed: initialTextureName)
+        let fallbackColor: SKColor = config.isHostile ? .red : .blue
+        super.init(texture: texture, color: fallbackColor, size: size)
+
         if texture.size() == .zero {
-            self.color = config.isHostile ? .red : .blue
-            self.size = size
+            self.color = fallbackColor
         }
-        
+
         self.position = config.startPosition
         self.name = config.isHostile ? "hostile_npc" : "neutral_npc"
         self.zPosition = 5
-        
-        // Create vision cone
+
         setupVisionCone()
-        
-        // Add sensitivity indicator
-        setupSensitivityIndicator()
-        
-        // Start patrol
         startPatrol()
     }
     
@@ -135,36 +133,69 @@ class StealthNPCCharacter: SKSpriteNode {
     
     private func moveToNextPatrolPoint() {
         guard config.patrolPoints.count > 1 else { return }
-        
+
         currentPatrolIndex = (currentPatrolIndex + 1) % config.patrolPoints.count
         let targetPoint = config.patrolPoints[currentPatrolIndex]
-        
+
         let distance = hypot(targetPoint.x - position.x, targetPoint.y - position.y)
-        let duration = TimeInterval(distance / 50.0) // Speed: 50 points per second
-        
-        // Calculate rotation to face movement direction
+        let duration = TimeInterval(distance / 50.0)
+
         let angle = atan2(targetPoint.y - position.y, targetPoint.x - position.x)
-        let rotateAction = SKAction.rotate(toAngle: angle - CGFloat.pi / 2, duration: 0.3, shortestUnitArc: true)
-        
+
+        // Update facing direction: swap texture + rotate vision cone (don't rotate sprite)
+        let updateDirectionAction = SKAction.run { [weak self] in
+            self?.updateFacing(angle: angle)
+        }
+
         let moveAction = SKAction.move(to: targetPoint, duration: duration)
         let waitAction = SKAction.wait(forDuration: 1.0)
-        
+
         let sequence = SKAction.sequence([
-            rotateAction,
+            updateDirectionAction,
             moveAction,
             waitAction,
             SKAction.run { [weak self] in
                 self?.moveToNextPatrolPoint()
             }
         ])
-        
+
         run(sequence, withKey: "patrol")
+    }
+
+    private func updateFacing(angle: CGFloat) {
+        facingAngle = angle
+
+        // Swap to the directional texture for this movement angle
+        let dirName = directionName(for: angle)
+        let textureName = "\(config.npcType.textureName)_\(dirName)"
+        let newTexture = SKTexture(imageNamed: textureName)
+        if newTexture.size() != .zero {
+            texture = newTexture
+        }
+
+        // Rotate the vision cone to match facing direction (cone base points up = π/2)
+        visionCone?.zRotation = angle - CGFloat.pi / 2
+    }
+
+    private func directionName(for angle: CGFloat) -> String {
+        // angle: 0 = east, π/2 = north, ±π = west, -π/2 = south
+        var deg = angle * 180.0 / .pi
+        if deg < 0 { deg += 360 }
+        switch deg {
+        case 337.5..<360, 0..<22.5: return "east"
+        case 22.5..<67.5:           return "north_east"
+        case 67.5..<112.5:          return "north"
+        case 112.5..<157.5:         return "north_west"
+        case 157.5..<202.5:         return "west"
+        case 202.5..<247.5:         return "south_west"
+        case 247.5..<292.5:         return "south"
+        default:                    return "south_east"  // 292.5..<337.5
+        }
     }
     
     func canSee(point: CGPoint) -> Bool {
-        // Get the ninja's position in world coordinates
-        guard let parent = parent else { return false }
-        
+        guard parent != nil else { return false }
+
         // Calculate vector from NPC to ninja
         let dx = point.x - position.x
         let dy = point.y - position.y
@@ -175,10 +206,9 @@ class StealthNPCCharacter: SKSpriteNode {
         
         // Calculate angle to ninja (in world coordinates)
         let angleToNinja = atan2(dy, dx)
-        
-        // Get NPC's facing direction (zRotation is in radians)
-        // NPC rotates by (angle - π/2) when moving, so add π/2 back to get actual facing direction
-        let npcFacingAngle = zRotation + CGFloat.pi / 2
+
+        // Use tracked facingAngle (updated whenever the NPC changes direction)
+        let npcFacingAngle = facingAngle
         
         // Calculate the difference between where NPC is facing and where ninja is
         var angleDiff = angleToNinja - npcFacingAngle

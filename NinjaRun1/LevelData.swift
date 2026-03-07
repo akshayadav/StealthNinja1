@@ -15,13 +15,36 @@ struct LevelData {
     let hidingPoints: [HidingPointConfig]
     let npcs: [NPCConfig]
     let levelWidth: CGFloat
-    
+
+    enum NPCType {
+        case samuraiGuard
+        case villageFarmer
+        case guardDog
+        case blackPanther
+
+        var textureName: String {
+            switch self {
+            case .samuraiGuard:  return "samurai_guard"
+            case .villageFarmer: return "village_farmer"
+            case .guardDog:      return "guard_dog"
+            case .blackPanther:  return "black_panther"
+            }
+        }
+
+        var isHostile: Bool {
+            switch self {
+            case .samuraiGuard, .guardDog, .blackPanther: return true
+            case .villageFarmer: return false
+            }
+        }
+    }
+
     struct HidingPointConfig {
         let position: CGPoint
         let size: CGSize
         let isLightDependent: Bool
     }
-    
+
     struct NPCConfig {
         let startPosition: CGPoint
         let patrolPoints: [CGPoint]
@@ -29,14 +52,16 @@ struct LevelData {
         let visionAngle: CGFloat
         let isHostile: Bool
         let detectionSensitivity: Int // 1-10, how quickly the NPC detects the player
-        
-        init(startPosition: CGPoint, patrolPoints: [CGPoint], visionRange: CGFloat, visionAngle: CGFloat, isHostile: Bool, detectionSensitivity: Int = 5) {
+        let npcType: NPCType
+
+        init(startPosition: CGPoint, patrolPoints: [CGPoint], visionRange: CGFloat, visionAngle: CGFloat, isHostile: Bool, detectionSensitivity: Int = 5, npcType: NPCType? = nil) {
             self.startPosition = startPosition
             self.patrolPoints = patrolPoints
             self.visionRange = visionRange
             self.visionAngle = visionAngle
             self.isHostile = isHostile
             self.detectionSensitivity = detectionSensitivity
+            self.npcType = npcType ?? (isHostile ? .samuraiGuard : .villageFarmer)
         }
     }
 }

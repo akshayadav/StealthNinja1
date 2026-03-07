@@ -53,8 +53,8 @@ extension LevelManager {
             LevelData.HidingPointConfig(position: CGPoint(x: 2100, y: 180), size: CGSize(width: 70, height: 70), isLightDependent: false),
             LevelData.HidingPointConfig(position: CGPoint(x: 2400, y: 220), size: CGSize(width: 70, height: 70), isLightDependent: false)
         ]
-        
-        let npcs = [
+
+        var npcs = [
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 450, y: 250),
                 patrolPoints: [
@@ -99,6 +99,20 @@ extension LevelManager {
             )
         ]
         
+        // Add a guard dog patrolling the middle stretch
+        npcs.append(LevelData.NPCConfig(
+            startPosition: CGPoint(x: 1200, y: 220),
+            patrolPoints: [
+                CGPoint(x: 1100, y: 220),
+                CGPoint(x: 1350, y: 220)
+            ],
+            visionRange: 160,
+            visionAngle: CGFloat.pi / 2.2,
+            isHostile: true,
+            detectionSensitivity: 8,
+            npcType: LevelData.NPCType.guardDog
+        ))
+
         return LevelData(
             levelNumber: 4,
             startPosition: CGPoint(x: 100, y: 180),
@@ -123,8 +137,8 @@ extension LevelManager {
             LevelData.HidingPointConfig(position: CGPoint(x: 1900, y: 270), size: CGSize(width: 65, height: 65), isLightDependent: false),
             LevelData.HidingPointConfig(position: CGPoint(x: 2100, y: 190), size: CGSize(width: 65, height: 65), isLightDependent: false)
         ]
-        
-        let npcs = [
+
+        var npcs = [
             LevelData.NPCConfig(
                 startPosition: CGPoint(x: 380, y: 220),
                 patrolPoints: [
@@ -179,6 +193,20 @@ extension LevelManager {
             )
         ]
         
+        // Add a black panther lurking near the end
+        npcs.append(LevelData.NPCConfig(
+            startPosition: CGPoint(x: 2000, y: 240),
+            patrolPoints: [
+                CGPoint(x: 1900, y: 220),
+                CGPoint(x: 2150, y: 270)
+            ],
+            visionRange: 210,
+            visionAngle: CGFloat.pi / 2.5,
+            isHostile: true,
+            detectionSensitivity: 9,
+            npcType: LevelData.NPCType.blackPanther
+        ))
+
         return LevelData(
             levelNumber: 5,
             startPosition: CGPoint(x: 100, y: 300),

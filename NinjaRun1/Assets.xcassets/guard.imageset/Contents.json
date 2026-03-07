@@ -1,0 +1,13 @@
+{
+  "images" : [
+    {
+      "filename" : "guard.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "author" : "pixellab",
+    "version" : 1
+  }
+}
