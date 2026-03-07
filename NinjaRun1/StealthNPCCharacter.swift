@@ -138,28 +138,54 @@ class StealthNPCCharacter: SKSpriteNode {
         let targetPoint = config.patrolPoints[currentPatrolIndex]
 
         let distance = hypot(targetPoint.x - position.x, targetPoint.y - position.y)
-        let duration = TimeInterval(distance / 50.0)
+
+        // Vary speed by NPC type for natural feel
+        let baseSpeed: CGFloat
+        switch config.npcType {
+        case .guardDog, .blackPanther: baseSpeed = CGFloat.random(in: 65...80)
+        case .samuraiGuard:            baseSpeed = CGFloat.random(in: 38...52)
+        case .villageFarmer:           baseSpeed = CGFloat.random(in: 28...40)
+        }
+        let duration = TimeInterval(distance / baseSpeed)
 
         let angle = atan2(targetPoint.y - position.y, targetPoint.x - position.x)
 
-        // Update facing direction: swap texture + rotate vision cone (don't rotate sprite)
         let updateDirectionAction = SKAction.run { [weak self] in
             self?.updateFacing(angle: angle)
         }
 
         let moveAction = SKAction.move(to: targetPoint, duration: duration)
-        let waitAction = SKAction.wait(forDuration: 1.0)
+
+        // Random pause duration + natural look-around
+        let pauseDuration = Double.random(in: 0.4...2.2)
+        let lookAround = buildLookAroundAction(near: angle)
 
         let sequence = SKAction.sequence([
             updateDirectionAction,
             moveAction,
-            waitAction,
+            SKAction.wait(forDuration: pauseDuration * 0.3),
+            lookAround,
+            SKAction.wait(forDuration: pauseDuration * 0.4),
             SKAction.run { [weak self] in
                 self?.moveToNextPatrolPoint()
             }
         ])
 
         run(sequence, withKey: "patrol")
+    }
+
+    /// Builds a short look-around action: glances left and right from current facing
+    private func buildLookAroundAction(near baseAngle: CGFloat) -> SKAction {
+        let offsets: [CGFloat] = [0.4, -0.5, 0.2, -0.3]
+        var actions: [SKAction] = []
+        for offset in offsets {
+            let glanceAngle = baseAngle + offset
+            actions.append(SKAction.run { [weak self] in self?.updateFacing(angle: glanceAngle) })
+            actions.append(SKAction.wait(forDuration: Double.random(in: 0.25...0.45)))
+        }
+        // Return to original direction
+        actions.append(SKAction.run { [weak self] in self?.updateFacing(angle: baseAngle) })
+        return SKAction.sequence(actions)
     }
 
     private func updateFacing(angle: CGFloat) {
