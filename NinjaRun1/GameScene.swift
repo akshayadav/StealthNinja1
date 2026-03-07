@@ -16,6 +16,9 @@ class GameScene: SKScene {
     private var npcs: [StealthNPCCharacter] = []
     private var worldNode: SKNode!
     private var cameraNode: SKCameraNode!
+
+    // Parallax background layers (back to front)
+    private var parallaxLayers: [(node: SKNode, speed: CGFloat)] = []
     
     // MARK: - UI Elements
     private var moveButton: SKShapeNode!
@@ -298,6 +301,10 @@ class GameScene: SKScene {
         worldNode.removeAllChildren()
         hidingPoints.removeAll()
         npcs.removeAll()
+
+        // Remove old parallax layers
+        for (node, _) in parallaxLayers { node.removeFromParent() }
+        parallaxLayers.removeAll()
         
         // Load level data
         currentLevel = LevelManager.shared.getLevelData(levelNumber: levelNumber)
@@ -373,148 +380,189 @@ class GameScene: SKScene {
         let w = currentLevel.levelWidth
         let ts: CGFloat = 64  // tile size
 
-        // ── 1. Scenic landscape background ──────────────────────────────
-        // Tile the landscape image across the full level width behind the play area
-        let bgTex = SKTexture(imageNamed: "landscape_bg")
-        bgTex.filteringMode = .nearest
-        let bgHeight: CGFloat = 500
-        let bgAspect = bgTex.size().width / bgTex.size().height
-        let bgTileW = bgHeight * bgAspect  // maintain aspect ratio
-        for bx in stride(from: CGFloat(0), through: w, by: bgTileW) {
-            let bg = SKSpriteNode(texture: bgTex, size: CGSize(width: bgTileW, height: bgHeight))
-            bg.position = CGPoint(x: bx + bgTileW / 2, y: 550)
-            bg.zPosition = -20
-            worldNode.addChild(bg)
+        // ── 1. Parallax background layers ──────────────────────────────
+        // Each layer is added to the scene (not worldNode) and scrolls at
+        // a fraction of the camera speed, creating depth.
+        parallaxLayers.removeAll()
+
+        // Helper to tile a texture across a parallax layer node
+        func addParallaxLayer(textureName: String, tileH: CGFloat, yCenter: CGFloat,
+                              zPos: CGFloat, speed: CGFloat, tint: SKColor? = nil,
+                              alpha: CGFloat = 1.0) {
+            let container = SKNode()
+            container.zPosition = zPos
+            let tex = SKTexture(imageNamed: textureName)
+            tex.filteringMode = .nearest
+            let aspect = tex.size().width / tex.size().height
+            let tileW = tileH * aspect
+            // Tile enough to cover viewport even with parallax offset
+            let coverW = w + size.width
+            for bx in stride(from: CGFloat(-size.width / 2), through: coverW, by: tileW) {
+                let sprite = SKSpriteNode(texture: tex, size: CGSize(width: tileW, height: tileH))
+                sprite.position = CGPoint(x: bx + tileW / 2, y: yCenter)
+                sprite.alpha = alpha
+                if let tint = tint {
+                    sprite.color = tint
+                    sprite.colorBlendFactor = 0.5
+                }
+                container.addChild(sprite)
+            }
+            addChild(container)
+            parallaxLayers.append((node: container, speed: speed))
         }
 
-        // Night tint overlay — darkens the landscape for nighttime mood
-        let nightTint = SKSpriteNode(color: SKColor(red: 0.02, green: 0.03, blue: 0.10, alpha: 0.55),
-                                     size: CGSize(width: w, height: 600))
-        nightTint.position = CGPoint(x: w / 2, y: 550)
-        nightTint.zPosition = -19
-        worldNode.addChild(nightTint)
+        // Layer 0: Night sky (barely moves — almost fixed)
+        addParallaxLayer(textureName: "parallax_sky", tileH: 500, yCenter: 550,
+                         zPos: -30, speed: 0.05)
 
-        // A few stars visible through the tint
-        for _ in 0..<40 {
-            let star = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.4...1.5))
-            star.fillColor = SKColor(white: 1, alpha: CGFloat.random(in: 0.2...0.6))
-            star.strokeColor = .clear
-            star.position = CGPoint(x: CGFloat.random(in: 0...w), y: CGFloat.random(in: 600...850))
-            star.zPosition = -18
-            let twinkle = SKAction.sequence([
-                SKAction.fadeAlpha(to: 0.1, duration: Double.random(in: 2.0...4.0)),
-                SKAction.fadeAlpha(to: 0.5, duration: Double.random(in: 2.0...4.0))
-            ])
-            star.run(SKAction.repeatForever(twinkle))
-            worldNode.addChild(star)
+        // Layer 1: Distant mountains (slow movement)
+        addParallaxLayer(textureName: "parallax_mountains", tileH: 350, yCenter: 420,
+                         zPos: -28, speed: 0.15)
+
+        // Layer 2: Mid-distance forest (medium movement)
+        addParallaxLayer(textureName: "parallax_trees", tileH: 300, yCenter: 380,
+                         zPos: -26, speed: 0.35)
+
+        // Layer 3: Near foreground silhouettes (faster movement)
+        addParallaxLayer(textureName: "parallax_foreground", tileH: 250, yCenter: 360,
+                         zPos: -24, speed: 0.55)
+
+        // ── Wang tile extraction helper ───────────────────────────────
+        // Extracts a single 32x32 tile from a 128x128 Wang tileset atlas.
+        // Wang ID encodes corners: bit3=NW, bit2=NE, bit1=SW, bit0=SE
+        // (upper=1, lower=0). The atlas layout maps each ID to a bounding box.
+        let wangPositions: [Int: (x: Int, y: Int)] = [
+             0: (64, 32),   1: (96, 32),   2: (64, 64),   3: (32, 64),
+             4: (64, 0),    5: (96, 64),   6: (0, 32),    7: (96, 96),
+             8: (32, 32),   9: (64, 96),  10: (32, 0),   11: (0, 64),
+            12: (96, 0),   13: (0, 0),    14: (32, 96),  15: (0, 96)
+        ]
+        func wangTile(atlas: SKTexture, wangID: Int) -> SKTexture {
+            guard let pos = wangPositions[wangID] else { return atlas }
+            let uvRect = CGRect(x: CGFloat(pos.x) / 128.0,
+                                y: 1.0 - CGFloat(pos.y + 32) / 128.0,
+                                width: 0.25, height: 0.25)
+            let sub = SKTexture(rect: uvRect, in: atlas)
+            sub.filteringMode = .nearest
+            return sub
         }
 
-        // Bottom background — extend landscape below the play area too
-        for bx in stride(from: CGFloat(0), through: w, by: bgTileW) {
-            let bgBottom = SKSpriteNode(texture: bgTex, size: CGSize(width: bgTileW, height: 200))
-            bgBottom.position = CGPoint(x: bx + bgTileW / 2, y: -60)
-            bgBottom.zPosition = -20
-            worldNode.addChild(bgBottom)
-        }
-        let bottomTint = SKSpriteNode(color: SKColor(red: 0.02, green: 0.03, blue: 0.10, alpha: 0.65),
-                                      size: CGSize(width: w, height: 250))
-        bottomTint.position = CGPoint(x: w / 2, y: -60)
-        bottomTint.zPosition = -19
-        worldNode.addChild(bottomTint)
+        // Load tileset atlases
+        let stoneGrassAtlas = SKTexture(imageNamed: "tileset_stone_grass")
+        stoneGrassAtlas.filteringMode = .nearest
+        let stoneDirtAtlas = SKTexture(imageNamed: "tileset_stone_dirt")
+        stoneDirtAtlas.filteringMode = .nearest
+        let riceGrassAtlas = SKTexture(imageNamed: "tileset_rice_grass")
+        riceGrassAtlas.filteringMode = .nearest
 
-        // ── 2. Rice field strips (top & bottom edges) ────────────────────
-        let riceTex = SKTexture(imageNamed: "rice_field_tile")
-        riceTex.filteringMode = .nearest
-        let ricePlantTex = SKTexture(imageNamed: "rice_plant_tile")
-        ricePlantTex.filteringMode = .nearest
+        // Extract the tiles we need for horizontal band layout
+        let pureStone = wangTile(atlas: stoneGrassAtlas, wangID: 0)   // all lower
+        let pureGrass = wangTile(atlas: stoneGrassAtlas, wangID: 15)  // all upper
+        let grassTopStoneBot = wangTile(atlas: stoneGrassAtlas, wangID: 12)  // NW+NE=grass
+        let stoneTopGrassBot = wangTile(atlas: stoneGrassAtlas, wangID: 3)   // SW+SE=grass
+        let pureDirt = wangTile(atlas: stoneDirtAtlas, wangID: 15)  // all upper = dirt
+        let stoneToDirtTop = wangTile(atlas: stoneDirtAtlas, wangID: 12)  // dirt on top edge
+        let stoneToDirtBot = wangTile(atlas: stoneDirtAtlas, wangID: 3)   // dirt on bottom edge
+        let pureRice = wangTile(atlas: riceGrassAtlas, wangID: 0)
+        let riceTopGrassBot = wangTile(atlas: riceGrassAtlas, wangID: 3)
+        let grassTopRiceBot = wangTile(atlas: riceGrassAtlas, wangID: 12)
 
-        // Top rice field (above the courtyard)
-        for y in stride(from: CGFloat(380), through: CGFloat(440), by: ts) {
-            for gx in stride(from: CGFloat(0), through: w, by: ts) {
-                let tile = SKSpriteNode(texture: riceTex, size: CGSize(width: ts, height: ts))
+        // ── 2. Rice paddy fields (top & bottom) ────────────────────────
+        // Top rice field with grass transition
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            // Grass → rice transition row
+            let trans = SKSpriteNode(texture: grassTopRiceBot, size: CGSize(width: ts, height: ts))
+            trans.position = CGPoint(x: gx + ts / 2, y: 380 + ts / 2)
+            trans.zPosition = -12
+            worldNode.addChild(trans)
+            // Pure rice rows above
+            for y in stride(from: CGFloat(412), through: CGFloat(480), by: ts) {
+                let tile = SKSpriteNode(texture: pureRice, size: CGSize(width: ts, height: ts))
                 tile.position = CGPoint(x: gx + ts / 2, y: y + ts / 2)
                 tile.zPosition = -12
                 worldNode.addChild(tile)
             }
         }
-        // Rice plants layered on top
-        for y in stride(from: CGFloat(390), through: CGFloat(430), by: ts) {
-            for gx in stride(from: CGFloat(0), through: w, by: ts) {
-                let plant = SKSpriteNode(texture: ricePlantTex, size: CGSize(width: ts, height: ts))
-                plant.position = CGPoint(x: gx + ts / 2 + CGFloat.random(in: -6...6),
-                                         y: y + ts / 2 + CGFloat.random(in: -4...4))
-                plant.alpha = CGFloat.random(in: 0.6...0.9)
-                plant.zPosition = -11
-                worldNode.addChild(plant)
-            }
-        }
 
-        // Bottom rice field (below the courtyard)
+        // Bottom rice field
         for gx in stride(from: CGFloat(0), through: w, by: ts) {
-            let tile = SKSpriteNode(texture: riceTex, size: CGSize(width: ts, height: ts))
-            tile.position = CGPoint(x: gx + ts / 2, y: 40)
+            let trans = SKSpriteNode(texture: riceTopGrassBot, size: CGSize(width: ts, height: ts))
+            trans.position = CGPoint(x: gx + ts / 2, y: 68 + ts / 2)
+            trans.zPosition = -12
+            worldNode.addChild(trans)
+            let tile = SKSpriteNode(texture: pureRice, size: CGSize(width: ts, height: ts))
+            tile.position = CGPoint(x: gx + ts / 2, y: 36 + ts / 2)
             tile.zPosition = -12
             worldNode.addChild(tile)
         }
 
-        // ── 3. Grass border strips between rice and courtyard ────────────
-        let grassTex = SKTexture(imageNamed: "grass_tile")
-        grassTex.filteringMode = .nearest
-        for yStrip in [CGFloat(350), CGFloat(80)] {
-            for gx in stride(from: CGFloat(0), through: w, by: ts) {
-                let g = SKSpriteNode(texture: grassTex, size: CGSize(width: ts, height: ts))
-                g.position = CGPoint(x: gx + ts / 2, y: yStrip)
-                g.zPosition = -11
-                worldNode.addChild(g)
-            }
+        // ── 3. Grass areas (between rice and courtyard) ─────────────────
+        // Top grass band
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            let g = SKSpriteNode(texture: pureGrass, size: CGSize(width: ts, height: ts))
+            g.position = CGPoint(x: gx + ts / 2, y: 348 + ts / 2)
+            g.zPosition = -11
+            worldNode.addChild(g)
+        }
+        // Bottom grass band
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            let g = SKSpriteNode(texture: pureGrass, size: CGSize(width: ts, height: ts))
+            g.position = CGPoint(x: gx + ts / 2, y: 100 + ts / 2)
+            g.zPosition = -11
+            worldNode.addChild(g)
         }
 
-        // ── 4. Main courtyard — stone tile floor ─────────────────────────
-        let stoneTex = SKTexture(imageNamed: "stone_tile")
-        stoneTex.filteringMode = .nearest
-        let courtyardBg = SKSpriteNode(color: SKColor(red: 0.10, green: 0.12, blue: 0.14, alpha: 1),
-                                       size: CGSize(width: w, height: 260))
-        courtyardBg.position = CGPoint(x: w / 2, y: 220)
-        courtyardBg.zPosition = -11
-        worldNode.addChild(courtyardBg)
-
-        for x in stride(from: CGFloat(0), through: w, by: ts) {
-            for y in stride(from: CGFloat(100), through: CGFloat(330), by: ts) {
-                let tile = SKSpriteNode(texture: stoneTex, size: CGSize(width: ts, height: ts))
-                tile.position = CGPoint(x: x + ts / 2, y: y + ts / 2)
-                tile.alpha = 0.35
+        // ── 4. Stone courtyard with Wang tile transitions ───────────────
+        // Top transition: grass → stone
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            let t = SKSpriteNode(texture: grassTopStoneBot, size: CGSize(width: ts, height: ts))
+            t.position = CGPoint(x: gx + ts / 2, y: 316 + ts / 2)
+            t.zPosition = -10
+            worldNode.addChild(t)
+        }
+        // Pure stone fill
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            for y in stride(from: CGFloat(140), through: CGFloat(284), by: ts) {
+                let tile = SKSpriteNode(texture: pureStone, size: CGSize(width: ts, height: ts))
+                tile.position = CGPoint(x: gx + ts / 2, y: y + ts / 2)
                 tile.zPosition = -10
                 worldNode.addChild(tile)
             }
         }
-
-        // ── 5. Central dirt path (the walkway) ──────────────────────────
-        let dirtTex = SKTexture(imageNamed: "dirt_path_tile")
-        dirtTex.filteringMode = .nearest
-        let pathBase = SKSpriteNode(color: SKColor(red: 0.18, green: 0.14, blue: 0.10, alpha: 1),
-                                    size: CGSize(width: w, height: 110))
-        pathBase.position = CGPoint(x: w / 2, y: 195)
-        pathBase.zPosition = -9
-        worldNode.addChild(pathBase)
-
+        // Bottom transition: stone → grass
         for gx in stride(from: CGFloat(0), through: w, by: ts) {
-            let dirt = SKSpriteNode(texture: dirtTex, size: CGSize(width: ts, height: ts))
-            dirt.position = CGPoint(x: gx + ts / 2, y: 195)
-            dirt.alpha = 0.7
-            dirt.zPosition = -8
-            worldNode.addChild(dirt)
+            let t = SKSpriteNode(texture: stoneTopGrassBot, size: CGSize(width: ts, height: ts))
+            t.position = CGPoint(x: gx + ts / 2, y: 132 + ts / 2)
+            t.zPosition = -10
+            worldNode.addChild(t)
         }
 
-        // Path edge highlights
-        for yEdge: CGFloat in [140, 250] {
-            let edgeLine = SKSpriteNode(color: SKColor(red: 0.25, green: 0.22, blue: 0.18, alpha: 0.5),
-                                        size: CGSize(width: w, height: 2))
-            edgeLine.position = CGPoint(x: w / 2, y: yEdge)
-            edgeLine.zPosition = -7
-            worldNode.addChild(edgeLine)
+        // ── 5. Dirt path with transitions ───────────────────────────────
+        // Stone → dirt transition (top edge of path)
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            let t = SKSpriteNode(texture: stoneToDirtTop, size: CGSize(width: ts, height: ts))
+            t.position = CGPoint(x: gx + ts / 2, y: 236 + ts / 2)
+            t.zPosition = -9
+            worldNode.addChild(t)
+        }
+        // Pure dirt path
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            for y in stride(from: CGFloat(172), through: CGFloat(204), by: ts) {
+                let tile = SKSpriteNode(texture: pureDirt, size: CGSize(width: ts, height: ts))
+                tile.position = CGPoint(x: gx + ts / 2, y: y + ts / 2)
+                tile.zPosition = -9
+                worldNode.addChild(tile)
+            }
+        }
+        // Dirt → stone transition (bottom edge of path)
+        for gx in stride(from: CGFloat(0), through: w, by: ts) {
+            let t = SKSpriteNode(texture: stoneToDirtBot, size: CGSize(width: ts, height: ts))
+            t.position = CGPoint(x: gx + ts / 2, y: 140 + ts / 2)
+            t.zPosition = -9
+            worldNode.addChild(t)
         }
 
-        // ── 6. Stone wall along the top border ───────────────────────────
+        // ── 6. Stone wall & fence borders ───────────────────────────────
         let wallTex = SKTexture(imageNamed: "stone_wall")
         wallTex.filteringMode = .nearest
         for gx in stride(from: CGFloat(0), through: w, by: 96) {
@@ -524,7 +572,6 @@ class GameScene: SKScene {
             worldNode.addChild(wall)
         }
 
-        // Japanese fence along bottom edge of play area
         let fenceTex = SKTexture(imageNamed: "japanese_fence")
         fenceTex.filteringMode = .nearest
         for gx in stride(from: CGFloat(0), through: w, by: 96) {
@@ -1264,6 +1311,11 @@ class GameScene: SKScene {
         let clampedY = min(max(targetY, minY), maxY)
 
         cameraNode.position = CGPoint(x: clampedX, y: clampedY)
+
+        // Parallax: shift each layer based on camera X offset
+        for (node, speed) in parallaxLayers {
+            node.position.x = clampedX * (1.0 - speed)
+        }
     }
     
     private func updateDetection() {

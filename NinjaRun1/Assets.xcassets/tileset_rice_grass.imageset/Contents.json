@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "tileset_rice_grass.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
