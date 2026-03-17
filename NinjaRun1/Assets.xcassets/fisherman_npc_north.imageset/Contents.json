@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "fisherman_npc_north.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

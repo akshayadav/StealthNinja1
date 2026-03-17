@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "pastel_farmhouse.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

@@ -19,11 +19,11 @@ class StealthHidingPoint: SKSpriteNode {
         // Create visual representation of hiding point
         let textureName = config.isLightDependent ? "hidingspot_shadow" : "hidingspot"
         let texture = SKTexture(imageNamed: textureName)
-        super.init(texture: texture, color: SKColor(red: 0.2, green: 0.25, blue: 0.3, alpha: 0.8), size: config.size)
-        
+        super.init(texture: texture, color: PastelPalette.sageGreen.withAlphaComponent(0.6), size: config.size)
+
         // Fallback if no texture is available
         if texture.size() == .zero {
-            self.color = SKColor(red: 0.2, green: 0.25, blue: 0.3, alpha: 0.8)
+            self.color = PastelPalette.sageGreen.withAlphaComponent(0.6)
             self.size = config.size
         }
         
@@ -52,9 +52,9 @@ class StealthHidingPoint: SKSpriteNode {
         let glowSize = CGSize(width: config.size.width + 10, height: config.size.height + 10)
         glowNode = SKShapeNode(rectOf: glowSize, cornerRadius: 8)
         glowNode?.fillColor = .clear
-        glowNode?.strokeColor = config.isLightDependent ? 
-            SKColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 0.6) : 
-            SKColor(red: 0.3, green: 0.9, blue: 0.5, alpha: 0.6)
+        glowNode?.strokeColor = config.isLightDependent ?
+            PastelPalette.softGold.withAlphaComponent(0.5) :
+            PastelPalette.sageGreen.withAlphaComponent(0.5)
         glowNode?.lineWidth = 3
         glowNode?.glowWidth = 5
         glowNode?.zPosition = -1
@@ -64,9 +64,9 @@ class StealthHidingPoint: SKSpriteNode {
         
         // Border with rounded corners
         let border = SKShapeNode(rectOf: config.size, cornerRadius: 6)
-        border.strokeColor = config.isLightDependent ? 
-            SKColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 0.8) : 
-            SKColor(red: 0.3, green: 1.0, blue: 0.5, alpha: 0.8)
+        border.strokeColor = config.isLightDependent ?
+            PastelPalette.softGold.withAlphaComponent(0.8) :
+            PastelPalette.sageGreen.withAlphaComponent(0.8)
         border.fillColor = .clear
         border.lineWidth = 2
         border.zPosition = 1
@@ -74,7 +74,7 @@ class StealthHidingPoint: SKSpriteNode {
         
         // Add icon indicator
         let iconLabel = SKLabelNode(fontNamed: "Arial-BoldMT")
-        iconLabel.text = config.isLightDependent ? "🌙" : "🌳"
+        iconLabel.text = config.isLightDependent ? "🌿" : "🌸"
         iconLabel.fontSize = 20
         iconLabel.alpha = 0.7
         iconLabel.verticalAlignmentMode = .center
@@ -97,9 +97,9 @@ class StealthHidingPoint: SKSpriteNode {
         
         for pos in positions {
             let corner = SKShapeNode(circleOfRadius: cornerSize / 2)
-            corner.fillColor = config.isLightDependent ? 
-                SKColor(red: 1.0, green: 0.9, blue: 0.3, alpha: 0.6) : 
-                SKColor(red: 0.3, green: 1.0, blue: 0.5, alpha: 0.6)
+            corner.fillColor = config.isLightDependent ?
+                PastelPalette.softGold.withAlphaComponent(0.6) :
+                PastelPalette.sageGreen.withAlphaComponent(0.6)
             corner.strokeColor = .clear
             corner.position = pos
             corner.zPosition = 1

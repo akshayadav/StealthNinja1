@@ -18,8 +18,31 @@ struct LevelData {
     let theme: LevelTheme
 
     enum LevelTheme {
-        case nightCastle    // dark stone courtyard (levels 1-6)
-        case sunnyVillage   // bright Japanese countryside
+        case meadowPath        // side-view: rolling green meadows, wildflowers
+        case riverCrossing     // side-view: stream with bridges, willows
+        case villageFarm       // top-down: Stardew-style farm with crops, barns
+        case harborTown        // top-down: fishing docks, boats, market stalls
+        case festivalGrounds   // top-down: lanterns, stalls, cherry blossoms
+        case nightGarden       // side-view: moonlit garden, fireflies, lavender
+        case nightCastle       // legacy dark stone courtyard
+        case sunnyVillage      // legacy bright Japanese countryside
+
+        var isSideView: Bool {
+            switch self {
+            case .meadowPath, .riverCrossing, .nightGarden, .nightCastle: return true
+            case .villageFarm, .harborTown, .festivalGrounds, .sunnyVillage: return false
+            }
+        }
+    }
+
+    enum NPCBehavior {
+        case patrol          // walk between patrol points
+        case stationary      // stand in place, look around
+        case farming         // bend down periodically at crop rows
+        case fishing         // sit at water, cast line
+        case playing         // run in small circles
+        case sleeping        // stay still, wake on proximity
+        case sweeping        // slow back-and-forth in small area
     }
 
     init(levelNumber: Int, startPosition: CGPoint, endPosition: CGPoint, hidingPoints: [HidingPointConfig], npcs: [NPCConfig], levelWidth: CGFloat, theme: LevelTheme = .nightCastle) {
@@ -37,20 +60,40 @@ struct LevelData {
         case villageFarmer
         case guardDog
         case blackPanther
+        case fisherman
+        case playingChild
+        case sleepingDog
+        case flowerGardener
+        case merchantVendor
+        case elderlyWalker
+        case tanuki
+        case chefKappa
+        case gossipGranny
 
         var textureName: String {
             switch self {
-            case .samuraiGuard:  return "samurai_guard"
-            case .villageFarmer: return "village_farmer"
-            case .guardDog:      return "guard_dog"
-            case .blackPanther:  return "black_panther"
+            case .samuraiGuard:    return "samurai_guard"
+            case .villageFarmer:   return "village_farmer"
+            case .guardDog:        return "guard_dog"
+            case .blackPanther:    return "black_panther"
+            case .fisherman:       return "fisherman_npc"
+            case .playingChild:    return "playing_child"
+            case .sleepingDog:     return "sleeping_dog"
+            case .flowerGardener:  return "flower_gardener"
+            case .merchantVendor:  return "merchant_vendor"
+            case .elderlyWalker:   return "elderly_walker"
+            case .tanuki:          return "tanuki"
+            case .chefKappa:       return "chef_kappa"
+            case .gossipGranny:    return "gossip_granny"
             }
         }
 
         var isHostile: Bool {
             switch self {
-            case .samuraiGuard, .guardDog, .blackPanther: return true
-            case .villageFarmer: return false
+            case .samuraiGuard, .guardDog, .blackPanther, .sleepingDog: return true
+            case .villageFarmer, .fisherman, .playingChild,
+                 .flowerGardener, .merchantVendor, .elderlyWalker,
+                 .tanuki, .chefKappa, .gossipGranny: return false
             }
         }
     }
@@ -69,8 +112,9 @@ struct LevelData {
         let isHostile: Bool
         let detectionSensitivity: Int // 1-10, how quickly the NPC detects the player
         let npcType: NPCType
+        let behavior: NPCBehavior
 
-        init(startPosition: CGPoint, patrolPoints: [CGPoint], visionRange: CGFloat, visionAngle: CGFloat, isHostile: Bool, detectionSensitivity: Int = 5, npcType: NPCType? = nil) {
+        init(startPosition: CGPoint, patrolPoints: [CGPoint], visionRange: CGFloat, visionAngle: CGFloat, isHostile: Bool, detectionSensitivity: Int = 5, npcType: NPCType? = nil, behavior: NPCBehavior = .patrol) {
             self.startPosition = startPosition
             self.patrolPoints = patrolPoints
             self.visionRange = visionRange
@@ -78,6 +122,7 @@ struct LevelData {
             self.isHostile = isHostile
             self.detectionSensitivity = detectionSensitivity
             self.npcType = npcType ?? (isHostile ? .samuraiGuard : .villageFarmer)
+            self.behavior = behavior
         }
     }
 }

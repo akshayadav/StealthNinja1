@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "merchant_vendor_west.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

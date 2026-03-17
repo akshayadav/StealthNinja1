@@ -14,11 +14,11 @@ class GameViewController: UIViewController {
         super.viewDidLoad()
         
         if let view = self.view as! SKView? {
-            // Create the scene
-            let scene = GameScene()
+            // Create the main menu scene
+            let scene = MainMenuScene()
             scene.size = view.bounds.size
             scene.scaleMode = .aspectFill
-            
+
             // Present the scene
             view.presentScene(scene)
             

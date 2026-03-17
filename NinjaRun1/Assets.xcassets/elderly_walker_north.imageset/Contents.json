@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "elderly_walker_north.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
